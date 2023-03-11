@@ -83,7 +83,7 @@ for i in variants.index:
             if scores == 'both':
                 MSE, correlation = utils.get_scores_SV(CHR, POS, ALT, END, SVTYPE, chrom_lengths, centromere_coords, fasta_open) 
         except:
-            print(i+': Variant cannot be scored likely due to length or N composition')
+            print(str(i)+': Variant cannot be scored likely due to length or N composition')
             pass
         
     else:
