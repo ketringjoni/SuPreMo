@@ -17,3 +17,5 @@ Required columns (data retrieved from vcf file):
 - END (string): SV only. End coordinate for SV (not used for BND)
 - SVTYPE (string): SV only. Options: BND, DEL, DUP, INV, INS. Will not score INS without inserted sequence. Note: assumes duplications are tandem.
 
+python score_var.py test/simple_var_test /pollard/data/vertebrate_genomes/human/hg38/hg38/hg38.fa data/chrom_lengths data/centromere_coords both test/simple_var_out
+python score_var.py test/SV_test /pollard/data/vertebrate_genomes/human/hg38/hg38/hg38.fa data/chrom_lengths data/centromere_coords both test/SV_out

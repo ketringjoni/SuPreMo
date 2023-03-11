@@ -27,15 +27,6 @@ pixel_size = 2048
 bins = 448
 nt = ['A', 'T', 'C', 'G']
 
-hg38_lengths = pd.read_table('./data/chrom_lengths', header = None, names = ['CHROM', 'chrom_max'])
-
-centromere_coords = pd.read_table("./data/centromere_coords").rename(columns = {'chrom':'CHROM','start':'centro_start', 'stop':'centro_stop'})
-
-fasta_file = './data/hg38.fa'
-
-fasta_open = pysam.Fastafile(fasta_file)
-# Note: if you want to get sequence starting at POS you should use this command on POS-1 since the genome starts at 0 with this command but 1 with how positions are annotated
-
 
 
 # # # # # # # # # # # # # # # # # # 
@@ -105,7 +96,7 @@ def read_vcf(path):
 
 
 
-def get_variant_position(CHR, POS, var_len, half_left, half_right):
+def get_variant_position(CHR, POS, var_len, half_left, half_right, hg38_lengths, centromere_coords):
 
     # Define variant position with respect to chromosome start and end
 
@@ -151,16 +142,50 @@ def get_variant_position(CHR, POS, var_len, half_left, half_right):
 
 
 
+def get_variant_type(REF, ALT):
+
+    # Annotate variant as one of the 6 categories below based on REF and ALT allele
+    
+    if len(REF) > len(ALT) and ALT in REF:
+        variant_type = "Deletion"
+    elif len(REF) < len(ALT) and REF in ALT:
+        variant_type = "Insertion"
+        
+    elif len(REF) > len(ALT) and ~(ALT in REF):
+        variant_type = "Del_sub"
+    elif len(REF) < len(ALT) and ~(REF in ALT):
+        variant_type = "Ins_sub"
+        
+    elif len(REF) == 1 and len(ALT) ==1:
+        variant_type = "SNP"
+    elif len(REF) == len(ALT) and len(REF) != 1:
+        variant_type = "MNP"
+    
+    return variant_type
+
+
+
+def get_bin(x):
+    
+    # Get the bin number based on bp number in a sequence (ex: 2500th bp is in the 2nd bin)
+    
+    x_bin = math.ceil(x/pixel_size) - 32
+    
+    return x_bin
+
+
+
+
 
 # # # # # # # # # # # # # # # # # # 
 # # # Generating sequence # # # # #
 
 
 
-def get_sequence(CHR, POS, REF, ALT):
+def get_sequence(CHR, POS, REF, ALT, hg38_lengths, centromere_coords, fasta_open):
   
     # Get reference and alternate sequence from REF and ALT allele using reference genome 
-    
+    # get_sequence will give an error if N composition > 5%
     
     # Get reference sequence
     
@@ -170,7 +195,7 @@ def get_sequence(CHR, POS, REF, ALT):
     REF_half_right = math.floor((MB - REF_len)/2)
 
     # Annotate whether variant is close to beginning or end of chromosome
-    var_position = get_variant_position(CHR, POS, REF_len, REF_half_left, REF_half_right)
+    var_position = get_variant_position(CHR, POS, REF_len, REF_half_left, REF_half_right, hg38_lengths, centromere_coords)
     
     # Get last coordinate of chromosome
     chrom_max = int(hg38_lengths[hg38_lengths.CHROM == CHR[3:]]['chrom_max']) 
@@ -354,7 +379,7 @@ def get_sequence(CHR, POS, REF, ALT):
 
 
 
-def get_sequences_BND(CHR, POS, ALT):
+def get_sequences_BND(CHR, POS, ALT, fasta_open):
 
     if '[' in ALT:
 
@@ -726,10 +751,9 @@ def get_MSE_from_vector(vector1, vector2):
 
 
 
-def get_scores(CHR, POS, REF, ALT):
+def get_scores(CHR, POS, REF, ALT, hg38_lengths, centromere_coords, fasta_open):
     
-#     try: # get_sequence will give an error if N composition > 5%
-    REF_seq, ALT_seq = get_sequence(CHR, POS, REF, ALT)
+    REF_seq, ALT_seq = get_sequence(CHR, POS, REF, ALT, hg38_lengths, centromere_coords, fasta_open)
 
     REF_vector, ALT_vector = vector_from_seq(REF_seq), vector_from_seq(ALT_seq)
 
@@ -748,12 +772,9 @@ def get_scores(CHR, POS, REF, ALT):
     correlation, corr_pval = spearmanr(REF_vector, ALT_vector, nan_policy='omit')
 
     if corr_pval >= 0.05:
-        correlation = 1 # this used to be 0, change to 1 on 4/26/22
+        correlation = 1
 
     disruption_score = get_MSE_from_vector(REF_vector, ALT_vector)
-    
-#     except:
-#         disruption_score, correlation = np.nan, np.nan 
         
 
     return disruption_score, correlation
@@ -788,7 +809,7 @@ def get_scores_BND(REF_pred_L, REF_pred_R, ALT_pred):
 
 
 
-def get_scores_SV(CHR, POS, ALT, END, SVTYPE):
+def get_scores_SV(CHR, POS, ALT, END, SVTYPE, hg38_lengths, centromere_coords, fasta_open):
     
     # Get new REF and ALT alleles
 
@@ -819,13 +840,13 @@ def get_scores_SV(CHR, POS, ALT, END, SVTYPE):
             mse, correlation = np.nan, np.nan
             
         else:
-            mse, correlation = get_scores(CHR, POS, REF, ALT)
+            mse, correlation = get_scores(CHR, POS, REF, ALT, hg38_lengths, centromere_coords, fasta_open)
      
     
         
     elif SVTYPE == "BND":
 
-        REF_seq_L, REF_seq_R, ALT_seq = get_sequences_BND(CHR, POS, ALT)
+        REF_seq_L, REF_seq_R, ALT_seq = get_sequences_BND(CHR, POS, ALT, fasta_open)
 
 
         REF_pred_L, REF_pred_R, ALT_pred = [mat_from_vector(vector) for vector in \
