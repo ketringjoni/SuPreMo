@@ -1,6 +1,8 @@
 # Akita_variant_scoring
 Pipeline for scoring simple and structural variants using Akita.
 
+Use: score_var.py <variant_df> <fasta> <chrom_lengths> <centromere_coords> <scores> <out_dir>
+
 Download and install Akita and its dependencies. Instructions here:
 https://github.com/calico/basenji/tree/master/manuscripts/akita
 
