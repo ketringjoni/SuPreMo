@@ -45,8 +45,9 @@ if tf.__version__[0] == '1':
     tf.compat.v1.enable_eager_execution()
 
 
-params_file = './Akita_model/params.json'
-model_file  = './Akita_model/model_best.h5'
+this_dir = os.path.dirname(os.path.abspath(__file__))
+params_file = os.path.join(this_dir, 'Akita_model', 'params.json')
+model_file  = os.path.join(this_dir, 'Akita_model', 'model_best.h5')
 with open(params_file) as params_open:
     params = json.load(params_open)
     params_model = params['model']
