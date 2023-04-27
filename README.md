@@ -1,26 +1,58 @@
-# Akita_variant_scoring
-Pipeline for scoring simple and structural variants using Akita.
-
-Use: score_var.py <variant_df> <fasta_file> <chrom_lengths> <centromere_coords> <score_type> <out_dir>
+Pipeline for scoring variants for disruption to genome folding using Akita (Fudenberg et. al. 2020)
 
 Download and install Akita and its dependencies. Instructions here:
 https://github.com/calico/basenji/tree/master/manuscripts/akita
 
-You will need the following in a directory within cwd called “Akita_model”:
-- model_best.h5  
-- params.json
+Packages needed:
+	- Numpy
+	- Pandas
+	- Scipy 
+	- Tensorflow
+	- Basenji and its dependencies
+	- Cooltools
+	- Pysam 
+	- Math
+	- Collection
+	- Bioseq
 
-Input: Data frame with variant information. 
-Required columns (data retrieved from vcf file):
-- CHROM (string): Chromosome in form chr1.
-- POS (integer): Variant position.
-- REF (string): Reference allele, not used for SVs.
-- ALT (string): Alternate allele for simple variants or coordinates for chromosomal rearrangements (SVTYPE = ‘BND’).
-- END (string): SV only. End coordinate for SV (not used for BND)
-- SVTYPE (string): SV only. Options: BND, DEL, DUP, INV, INS. Will not score INS without inserted sequence. Note: assumes duplications are tandem.
+usage: Akita_variant_scoring [-h] --in IN_FILE [--format {vcf,df}]
+                             [--type {simple,SV}] [--fa FASTA]
+                             [--chrom CHROM_LENGTHS]
+                             [--centro CENTROMERE_COORDS]
+                             [--score {mse,corr,both}]
+                             [--shift_by SHIFT_WINDOW [SHIFT_WINDOW ...]]
+                             [--out OUT_FILE] [--limit SVLEN_LIMIT]
 
-To run test:
+Score variants based on disruption to genome folding in the surround 1 Mb
+region using Akita (Fudenber et. al. 2020).
 
-python score_var.py test/simple_var_test data/hg38.fa data/chrom_lengths data/centromere_coords both test/simple_var_out
+optional arguments:
+  -h, --help            show this help message and exit
+  --in IN_FILE          Input file with variants.
+  --format {vcf,df}     Format for input file.
+  --type {simple,SV}    Variant type: simple or SV.
+  --fa FASTA            hg38 reference genome fasta file.
+  --chrom CHROM_LENGTHS
+                        File with lengths of chromosomes in hg38. Columns:
+                        chromosome (ex: 1), length; no header.
+  --centro CENTROMERE_COORDS
+                        Centromere coordinates for hg38. Columns: chromosome
+                        (ex: chr1), start, end; no header.
+  --score {mse,corr,both}
+                        Method(s) used to calculate disruption scores.
+  --shift_by SHIFT_WINDOW [SHIFT_WINDOW ...]
+                        Values for shifting prediciton windows (e.g. to
+                        predict with no shift (variant centered) and shift by
+                        1 bp to either side, use: -1 0 1). Values outside of
+                        range -450000 ≤ x ≤ 450000 will be ignored.
+  --out OUT_FILE        Directory in which to save the output file(s).
+  --limit SVLEN_LIMIT   Maximum structural variant length to be scored.
 
-python score_var.py test/SV_test data/hg38.fa data/chrom_lengths data/centromere_coords both test/SV_out
+
+Test run on SVs and simple variants:
+python score_var.py --in test/input_file_types/subset.somaticSV.vcf --shift_by -1 0 1 --out subset_SV_vcf
+python score_var.py --in test/input/subset.consensus_somatic.public.vcf --type simple --shift_by -1 0 1 --out subset_simple_vcf
+
+The resulting outputs (saved as 'score_var_output' in cwd) are in /test/score_var_output.
+
+
