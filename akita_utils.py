@@ -29,6 +29,7 @@ MB = 2*half_patch_size
 pixel_size = 2048
 bins = 448
 SV_cutoff = 700000
+max_shift = 450000
 nt = ['A', 'T', 'C', 'G']
 
 
@@ -47,6 +48,12 @@ import tensorflow as tf
 
 if tf.__version__[0] == '1':
     tf.compat.v1.enable_eager_execution()
+    
+    
+fasta_open = None
+chrom_lengths = None
+centromere_coords = None
+
 
 
 model_file  = './Akita_model/model_best.h5'
@@ -54,8 +61,10 @@ params_file = './Akita_model/params.json'
 
 if not Path(model_file).is_file():
     os.system('wget -P ./Akita_model/ https://storage.googleapis.com/basenji_hic/1m/models/9-14/model_best.h5')
+    print('Model file downloaded as Akita_model/model_best.h5.')
 if not Path(params_file).is_file():
     os.system('get -P ./Akita_model/ https://raw.githubusercontent.com/calico/basenji/master/manuscripts/akita/params.json')
+    print('Model file downloaded as Akita_model/params.json.')
 
 with open(params_file) as params_open:
     params = json.load(params_open)
@@ -124,69 +133,83 @@ def read_vcf_gz(path):
 
 
 
+def read_input(in_file):
 
-def read_input(in_file, file_format, var_type):
-
-    # Read and reformat variant dataset
+    """ Read and reformat variant dataset """
     
-    if file_format == 'df':
-        if var_type == 'simple':
-            variants = (pd.read_csv(in_file, skiprows = 1, sep = '\t')
-                        .rename(columns = {'Chromosome':'CHROM', 
-                                           'Start_Position':'POS',
-                                           'End_Position':'END',
-                                           'Reference_Allele':'REF',
-                                           'Tumor_Seq_Allele2':'ALT'})
-                       [['CHROM', 'POS', 'END', 'REF', 'ALT']])
-            variants['SVLEN'] = (variants.END - variants.POS).astype('int') # this SVLEN (END-POS) would be 0 for SNPs
-
-            # Might need to do this if there are homozygous variants where Tumor_Seq_Allele1 != Reference_Allele
-            # would need to only do this for those variants and concat with the rest
-            # variants = pd.melt(variants, 
-            #                    id_vars = ['CHROM', 'POS', 'REF'], 
-            #                    value_vars = ['ALT1', 'ALT2'], 
-            #                    var_name = 'allele', 
-            #                    value_name='ALT')
-
-            for i in variants[variants.ALT == '-'].index:
-                variants.loc[i,'SVTYPE'] = 'DEL'
-            for i in variants[variants.REF == '-'].index:
-                variants.loc[i,'SVTYPE'] = 'INS'
-
-            var_type = 'SV' # These are formatted like SVs
-
-        elif var_type == 'SV':
-            variants = (pd.read_csv(in_file, sep = '\t', low_memory=False)
-                        .rename(columns = {'SV_chrom':'CHROM', 
-                                           'SV_start':'POS',
-                                           'SV_end':'END', 
-                                           'SV_type':'SVTYPE',
-                                           'SV_length':'SVLEN'})
-                       [['CHROM', 'POS', 'END', 'REF', 'ALT', 'SVTYPE', 'SVLEN']])
-            variants['CHROM'] = ['chr' + str(x) for x in variants['CHROM']]
-            variants.loc[~pd.isnull(variants.END), 'END'] = variants.loc[~pd.isnull(variants.END), 'END'].astype('int')
-
-
-    elif file_format == 'vcf':
+    
+    if 'vcf' in in_file:
+        
+        # For gunzipped files
         if in_file.endswith('.gz'):
             variants = read_vcf_gz(in_file)
         else:
             variants = read_vcf(in_file)
             
-        if var_type == 'simple':
-            variants = variants[['CHROM', 'POS', 'REF', 'ALT']]
-
-        elif var_type == 'SV':
+        # Read SVs
+        if any(['SVTYPE' in x for x in variants.INFO]):
+            
             variants['END'] = variants.INFO.str.split('END=').str[1].str.split(';').str[0] # this SVLEN (END-POS) would be 0 for SNPs
             variants.loc[~pd.isnull(variants.END), 'END'] = variants.loc[~pd.isnull(variants.END), 'END'].astype('int')
             variants['SVTYPE'] = variants.INFO.str.split('SVTYPE=').str[1].str.split(';').str[0]
             variants['SVLEN'] = variants.INFO.str.split('SVLEN=').str[1].str.split(';').str[0]
             variants = variants[['CHROM', 'POS', 'END', 'REF', 'ALT', 'SVTYPE', 'SVLEN']]
+
+        # Read simple variants 
+        else:
             
+            variants = variants[['CHROM', 'POS', 'REF', 'ALT']]       
+            
+ 
+        
+    elif 'tsv' in in_file:
+        
+        variants = (pd.read_csv(in_file, sep = '\t', low_memory=False)
+                    .rename(columns = {'SV_chrom':'CHROM', 
+                                       'SV_start':'POS',
+                                       'SV_end':'END', 
+                                       'SV_type':'SVTYPE',
+                                       'SV_length':'SVLEN'})
+                   [['CHROM', 'POS', 'END', 'REF', 'ALT', 'SVTYPE', 'SVLEN']])
+        variants['CHROM'] = ['chr' + str(x) for x in variants['CHROM']]
+        variants.loc[~pd.isnull(variants.END), 'END'] = variants.loc[~pd.isnull(variants.END), 'END'].astype('int')
+
+    
+    
+    elif 'maf' in in_file:
+
+        # These are formatted like SVs
+            
+        variants = (pd.read_csv(in_file, skiprows = 1, sep = '\t')
+                    .rename(columns = {'Chromosome':'CHROM', 
+                                       'Start_Position':'POS',
+                                       'End_Position':'END',
+                                       'Reference_Allele':'REF',
+                                       'Tumor_Seq_Allele2':'ALT'})
+                   [['CHROM', 'POS', 'END', 'REF', 'ALT']])
+        variants['SVLEN'] = (variants.END - variants.POS).astype('int') # this SVLEN (END-POS) would be 0 for SNPs
+
+        # Might need to do this if there are homozygous variants where Tumor_Seq_Allele1 != Reference_Allele
+        # would need to only do this for those variants and concat with the rest
+        # variants = pd.melt(variants, 
+        #                    id_vars = ['CHROM', 'POS', 'REF'], 
+        #                    value_vars = ['ALT1', 'ALT2'], 
+        #                    var_name = 'allele', 
+        #                    value_name='ALT')
+
+        for i in variants[variants.ALT == '-'].index:
+            variants.loc[i,'SVTYPE'] = 'DEL'
+        for i in variants[variants.REF == '-'].index:
+            variants.loc[i,'SVTYPE'] = 'INS'
+
+        
+        
     variants.reset_index(inplace = True, drop = True)
     
+    
     return variants
-     
+
+
 
 
 
@@ -195,7 +218,7 @@ def read_input(in_file, file_format, var_type):
 
 
 
-def get_variant_position(CHR, POS, var_len, half_left, half_right, chrom_lengths, centromere_coords):
+def get_variant_position(CHR, POS, var_len, half_left, half_right):
 
     # Define variant position with respect to chromosome start and end
 
@@ -270,7 +293,7 @@ def get_bin(x):
 
 
 
-def get_sequence(CHR, POS, REF, ALT, shift, chrom_lengths, centromere_coords, fasta_open):
+def get_sequence(CHR, POS, REF, ALT, shift):
   
     # Get reference and alternate sequence from REF and ALT allele using reference genome 
     # use positive sign for a right shift and negative for a left shift
@@ -285,13 +308,13 @@ def get_sequence(CHR, POS, REF, ALT, shift, chrom_lengths, centromere_coords, fa
     
     # Annotate whether variant is near end of chromosome arms
     if len(REF) <= len(ALT): # For SNPs, MNPs, Insertions
-        var_position = get_variant_position(CHR, POS, REF_len, REF_half_left, REF_half_right, chrom_lengths, centromere_coords)
+        var_position = get_variant_position(CHR, POS, REF_len, REF_half_left, REF_half_right)
   
     elif len(REF) > len(ALT): # For Deletions        
         ALT_len = len(ALT)
         ALT_half_left = math.ceil((MB - ALT_len)/2) - shift
         ALT_half_right = math.floor((MB - ALT_len)/2) + shift   
-        var_position = get_variant_position(CHR, POS, ALT_len, ALT_half_left, ALT_half_right, chrom_lengths, centromere_coords)
+        var_position = get_variant_position(CHR, POS, ALT_len, ALT_half_left, ALT_half_right)
     
 
     # Get last coordinate of chromosome
@@ -487,7 +510,7 @@ def get_sequence(CHR, POS, REF, ALT, shift, chrom_lengths, centromere_coords, fa
 
 
 
-def get_sequences_BND(CHR, POS, ALT, shift, fasta_open):
+def get_sequences_BND(CHR, POS, ALT, shift):
 
     if '[' in ALT:
 
@@ -649,7 +672,7 @@ def get_right_BND_map(pred_matrix, shift):
 
 
 
-def mask_matrices(CHR, POS, REF, ALT, REF_pred, ALT_pred, shift, chrom_lengths, centromere_coords):
+def mask_matrices(CHR, POS, REF, ALT, REF_pred, ALT_pred, shift):
 
     # Mask reference and alternate predicted matrices, based on the type of variant, when they are centered in the sequence
     
@@ -686,7 +709,7 @@ def mask_matrices(CHR, POS, REF, ALT, REF_pred, ALT_pred, shift, chrom_lengths, 
         
         
         # Annotate whether variant is close to beginning or end of chromosome
-        var_position = get_variant_position(CHR, POS, REF_len, REF_half_left, REF_half_right, chrom_lengths, centromere_coords)
+        var_position = get_variant_position(CHR, POS, REF_len, REF_half_left, REF_half_right)
 
 
         # Get start and end bins of REF and ALT alleles
@@ -805,7 +828,7 @@ def mask_matrices(CHR, POS, REF, ALT, REF_pred, ALT_pred, shift, chrom_lengths, 
 
 
         # Annotate whether variant is close to beginning or end of chromosome
-        var_position = get_variant_position(CHR, POS, REF_len, REF_half_left, REF_half_right, chrom_lengths, centromere_coords)
+        var_position = get_variant_position(CHR, POS, REF_len, REF_half_left, REF_half_right)
 
 
         # Get start and end bins of REF and ALT alleles
@@ -884,9 +907,9 @@ def get_MSE_from_vector(vector1, vector2):
 
 
 
-def get_scores(CHR, POS, REF, ALT, score, shift, chrom_lengths, centromere_coords, fasta_open):
+def get_scores(CHR, POS, REF, ALT, scores, shift):
     
-    REF_seq, ALT_seq = get_sequence(CHR, POS, REF, ALT, shift, chrom_lengths, centromere_coords, fasta_open)
+    REF_seq, ALT_seq = get_sequence(CHR, POS, REF, ALT, shift)
 
     REF_vector, ALT_vector = vector_from_seq(REF_seq), vector_from_seq(ALT_seq)
 
@@ -895,31 +918,31 @@ def get_scores(CHR, POS, REF, ALT, score, shift, chrom_lengths, centromere_coord
         REF_pred, ALT_pred = mat_from_vector(REF_vector), mat_from_vector(ALT_vector)
 
         # mask matrices
-        REF_pred, ALT_pred = mask_matrices(CHR, POS, REF, ALT, REF_pred, ALT_pred, shift, chrom_lengths, centromere_coords)
+        REF_pred, ALT_pred = mask_matrices(CHR, POS, REF, ALT, REF_pred, ALT_pred, shift)
 
         # get masked vectors
         REF_vector = REF_pred[np.triu_indices(len(REF_pred), 2)]
         ALT_vector = ALT_pred[np.triu_indices(len(ALT_pred), 2)]
 
 
-    if score in ['corr', 'both']:
-        correlation, corr_pval = spearmanr(REF_vector, ALT_vector, nan_policy='omit')
-        if corr_pval >= 0.05:
-            correlation = 1
-    if score in ['mse', 'both']:
-        mse = get_MSE_from_vector(REF_vector, ALT_vector)
-    
-    if score == 'corr':
-        scores = correlation
-    elif score == 'mse':
-        scores = mse
-    elif score == 'both':
-        scores = [mse, correlation]
+    scores_results = {}
+    for score in scores:
+        
+        if score == 'corr':
+            correlation, corr_pval = spearmanr(REF_vector, ALT_vector, nan_policy='omit')
+            if corr_pval >= 0.05:
+                correlation = 1
+            scores_results[score] = correlation
+            
+        elif score == 'mse':
+            mse = get_MSE_from_vector(REF_vector, ALT_vector)
+            scores_results[score] = mse
+        
    
-    return scores
+    return scores_results
 
 
-def get_scores_BND(REF_pred_L, REF_pred_R, ALT_pred, shift):
+def get_scores_BND(REF_pred_L, REF_pred_R, ALT_pred, scores, shift):
     
     # Get REF and ALT vectors, excluding diagonal 
     indexes_left = np.triu_indices(bins/2 - round(shift/pixel_size), 2)
@@ -933,23 +956,28 @@ def get_scores_BND(REF_pred_L, REF_pred_R, ALT_pred, shift):
     REF_vector = np.append(REF_L, REF_R)
     ALT_vector = np.append(ALT_L, ALT_R)
     
-    # Get disruption score 
-    mse = get_MSE_from_vector(REF_vector, ALT_vector)
-    
-    # Get spearman correlation
-    correlation, corr_pval = spearmanr(REF_vector, ALT_vector)
-    
-    if corr_pval >= 0.05:
-        correlation = 0
-    
-    return mse, correlation
+    scores_results = {}
+    for score in scores:
+        
+        if score == 'corr':
+            correlation, corr_pval = spearmanr(REF_vector, ALT_vector, nan_policy='omit')
+            if corr_pval >= 0.05:
+                correlation = 1
+            scores_results[score] = correlation
+            
+        elif score == 'mse':
+            mse = get_MSE_from_vector(REF_vector, ALT_vector)
+            scores_results[score] = mse
+        
+   
+    return scores_results
 
 
 
 
 
 
-def get_scores_SV(CHR, POS, ALT, END, SVTYPE, score, shift, chrom_lengths, centromere_coords, fasta_open):
+def get_scores_SV(CHR, POS, ALT, END, SVTYPE, scores, shift):
     
     # Get new REF and ALT alleles
 
@@ -979,27 +1007,27 @@ def get_scores_SV(CHR, POS, ALT, END, SVTYPE, score, shift, chrom_lengths, centr
             raise ValueError(f'Variant larger than {SV_cutoff} bp cutoff.')
             
         else:
-            mse, correlation = get_scores(CHR, POS, REF, ALT, score, shift, chrom_lengths, centromere_coords, fasta_open)
+            scores_results = get_scores(CHR, POS, REF, ALT, scores, shift)
      
     
         
     elif SVTYPE == "BND":
 
-        REF_seq_L, REF_seq_R, ALT_seq = get_sequences_BND(CHR, POS, ALT, shift, fasta_open)
+        REF_seq_L, REF_seq_R, ALT_seq = get_sequences_BND(CHR, POS, ALT, shift)
 
 
         REF_pred_L, REF_pred_R, ALT_pred = [mat_from_vector(vector) for vector in \
                                             [vector_from_seq(seq) for seq in [REF_seq_L, REF_seq_R, ALT_seq]]]
 
         # Get disruption score and correlation for this variant
-        mse, correlation = get_scores_BND(REF_pred_L, REF_pred_R, ALT_pred, shift)
+        scores_results = get_scores_BND(REF_pred_L, REF_pred_R, ALT_pred, scores, shift)
 
     
     else:
         raise ValueError('SV type not supported.')
 
     
-    return mse, correlation
+    return scores_results
 
 
 
