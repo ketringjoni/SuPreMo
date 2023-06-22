@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+
+# # # # # # # # # # # # # # # # # # 
+# # # # # Import packages # # # # #
+
 import pandas as pd
 import numpy as np
 
@@ -24,12 +28,9 @@ from cooltools.lib.plotting import *
 from pathlib import Path
 import gzip
 
-half_patch_size = 2**19
-MB = 2*half_patch_size
-pixel_size = 2048
-bins = 448
-SV_cutoff = 700000
-max_shift = 450000
+
+svlen_limit = None
+var_set_size = None
 nt = ['A', 'T', 'C', 'G']
 
 
@@ -90,6 +91,21 @@ hic_params = params['model']['head_hic']
 cropping = hic_params[5]['cropping']
 target_length_cropped = target_length - 2 * cropping
 
+MB = None
+half_patch_size = None
+
+
+
+# # # # # # # # # # # # # # # # # # 
+# # # # Get scoring code # # # # #
+
+if not Path('scoring.py').is_file():
+    os.system('wget https://raw.githubusercontent.com/pollardlab/contact_map_scoring/main/code/scoring.py')
+
+import scoring
+
+
+
 
 # # # # # # # # # # # # # # # # # # 
 # # # # Reading functions # # # # #
@@ -97,62 +113,78 @@ target_length_cropped = target_length - 2 * cropping
 
 def read_vcf(path):
     
-    # Read vcf files and relabel their columns
+    '''
+    Read  vcf files into dataframe.
+    Adapted from: https://gist.github.com/dceoy/99d976a2c01e7f0ba1c813778f9db744.
+    
+    '''
     
     with open(path, 'r') as f:
-        lines = [l for l in f if not l.startswith('##')]
-    return pd.read_csv(
-        io.StringIO(''.join(lines)),
-        dtype={'#CHROM': str, 'POS': int, 'ID': str, 'REF': str, 'ALT': str,
-               'QUAL': str, 'FILTER': str, 'INFO': str},
-        sep='\t'
-    ).rename(columns={'#CHROM': 'CHROM'})
-
+        
+        lines =[l for l in f if not l.startswith('#')]
+        
+    vcf_file = io.StringIO(''.join(lines))
+    
+    return vcf_file
 
 
 
 def read_vcf_gz(path):
     
-    # Read gzipped vcf files and relabel their columns
+    '''
+    Read  gzipped vcf files into dataframe.
+    Adapted from: https://gist.github.com/dceoy/99d976a2c01e7f0ba1c813778f9db744.
+    
+    '''
     
     with io.TextIOWrapper(gzip.open(path,'r')) as f:
 
-        lines =[l for l in f if not l.startswith('##')]
-        # Identify columns name line and save it into a dict
-        dinamic_header_as_key = []
-        for liness in f:
-            if liness.startswith("#CHROM"):
-                dinamic_header_as_key.append(liness)
-
-    return pd.read_csv(
-            io.StringIO(''.join(lines)),
-            dtype={'#CHROM': str, 'POS': int, 'ID': str, 'REF': str, 'ALT': str,
-                   'QUAL': str, 'FILTER': str, 'INFO': str},
-            sep='\t'
-        ).rename(columns={'#CHROM':'CHROM'})
+        lines =[l for l in f if not l.startswith('#')]
+        
+    vcf_file = io.StringIO(''.join(lines))
+    
+    return vcf_file
 
 
 
-def read_input(in_file):
+def read_input(in_file, var_set):
 
-    """ Read and reformat variant dataset """
+    '''
+    Read and reformat variant dataset. Accepted formats are .vcf .vcf.gz from 4.1 version, 
+    .bed file with the following columns: [CHROM, POS, REF, ALT, END, SVTYPE, SVLEN], 
+    and .tsv from ANNOVAR annotSV.
+    
+    '''
     
     
     if 'vcf' in in_file:
         
-        # For gunzipped files
+        # For gzipped files
         if in_file.endswith('.gz'):
-            variants = read_vcf_gz(in_file)
+            vcf_file = read_vcf_gz(in_file)
         else:
-            variants = read_vcf(in_file)
+            vcf_file = read_vcf(in_file)
+            
+            
+        variants = pd.read_csv(
+                vcf_file,
+                skiprows = var_set*var_set_size, nrows = var_set_size,
+                sep='\t',
+                names = ['CHROM', 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER', 'INFO', 'INFO2', 'INFO3', 'INFO4']
+            )
             
         # Read SVs
         if any(['SVTYPE' in x for x in variants.INFO]):
             
-            variants['END'] = variants.INFO.str.split('END=').str[1].str.split(';').str[0] # this SVLEN (END-POS) would be 0 for SNPs
-            variants.loc[~pd.isnull(variants.END), 'END'] = variants.loc[~pd.isnull(variants.END), 'END'].astype('int')
+            if any(['END' in x and 'SVLEN' in x for x in variants.INFO]): # BNDs don't have 'END'
+                variants['END'] = variants.INFO.str.split('END=').str[1].str.split(';').str[0] # this SVLEN (END-POS) would be 0 for SNPs
+                variants.loc[~pd.isnull(variants.END), 'END'] = variants.loc[~pd.isnull(variants.END), 'END'].astype('int')
+                variants['SVLEN'] = variants.INFO.str.split('SVLEN=').str[1].str.split(';').str[0]
+            else:
+                variants['END'] = [np.nan]*len(variants)
+                variants['SVLEN'] = [np.nan]*len(variants)
             variants['SVTYPE'] = variants.INFO.str.split('SVTYPE=').str[1].str.split(';').str[0]
-            variants['SVLEN'] = variants.INFO.str.split('SVLEN=').str[1].str.split(';').str[0]
+            
             variants = variants[['CHROM', 'POS', 'END', 'REF', 'ALT', 'SVTYPE', 'SVLEN']]
 
         # Read simple variants 
@@ -162,46 +194,32 @@ def read_input(in_file):
             
  
         
+    elif 'bed' in in_file:
+        
+        colnames = ['CHROM', 'POS', 'REF', 'ALT', 'END', 'SVTYPE', 'SVLEN']
+        ncols = len(pd.read_csv(in_file, sep = '\t', nrows = 0, low_memory=False).columns)
+
+        variants = pd.read_csv(in_file, sep = '\t', names = colnames[:ncols], low_memory=False,
+                               skiprows = var_set*var_set_size, nrows = var_set_size)
+        
+        
     elif 'tsv' in in_file:
         
-        variants = (pd.read_csv(in_file, sep = '\t', low_memory=False)
-                    .rename(columns = {'SV_chrom':'CHROM', 
-                                       'SV_start':'POS',
-                                       'SV_end':'END', 
-                                       'SV_type':'SVTYPE',
-                                       'SV_length':'SVLEN'})
-                   [['CHROM', 'POS', 'END', 'REF', 'ALT', 'SVTYPE', 'SVLEN']])
-        variants['CHROM'] = ['chr' + str(x) for x in variants['CHROM']]
-        variants.loc[~pd.isnull(variants.END), 'END'] = variants.loc[~pd.isnull(variants.END), 'END'].astype('int')
+        with (gzip.open if in_file.endswith(".gz") else open)(in_file, "rt", encoding="utf-8") as variants:
+            variants = (pd.read_csv(in_file, sep = '\t', low_memory=False,
+                                   skiprows = var_set*var_set_size, nrows = var_set_size)
+                        .rename(columns = {'SV_chrom':'CHROM', 
+                                           'SV_start':'POS',
+                                           'SV_end':'END', 
+                                           'SV_type':'SVTYPE',
+                                           'SV_length':'SVLEN'})
+                       [['CHROM', 'POS', 'END', 'REF', 'ALT', 'SVTYPE', 'SVLEN']])
+            variants['CHROM'] = ['chr' + str(x) for x in variants['CHROM']]
+            variants.loc[~pd.isnull(variants.END), 'END'] = variants.loc[~pd.isnull(variants.END), 'END'].astype('int')
 
-    
-    
-    elif 'maf' in in_file:
-
-        # These are formatted like SVs
             
-        variants = (pd.read_csv(in_file, skiprows = 1, sep = '\t')
-                    .rename(columns = {'Chromosome':'CHROM', 
-                                       'Start_Position':'POS',
-                                       'End_Position':'END',
-                                       'Reference_Allele':'REF',
-                                       'Tumor_Seq_Allele2':'ALT'})
-                   [['CHROM', 'POS', 'END', 'REF', 'ALT']])
-        variants['SVLEN'] = (variants.END - variants.POS).astype('int') # this SVLEN (END-POS) would be 0 for SNPs
-
-        # Might need to do this if there are homozygous variants where Tumor_Seq_Allele1 != Reference_Allele
-        # would need to only do this for those variants and concat with the rest
-        # variants = pd.melt(variants, 
-        #                    id_vars = ['CHROM', 'POS', 'REF'], 
-        #                    value_vars = ['ALT1', 'ALT2'], 
-        #                    var_name = 'allele', 
-        #                    value_name='ALT')
-
-        for i in variants[variants.ALT == '-'].index:
-            variants.loc[i,'SVTYPE'] = 'DEL'
-        for i in variants[variants.REF == '-'].index:
-            variants.loc[i,'SVTYPE'] = 'INS'
-
+    else:
+        raise ValueError('Input file type not accepted. Make sure it has the right extension.')
         
         
     variants.reset_index(inplace = True, drop = True)
@@ -212,13 +230,25 @@ def read_input(in_file):
 
 
 
-
 # # # # # # # # # # # # # # # # # # 
 # # Upstream helper functions # # #
 
 
 
 def get_variant_position(CHR, POS, var_len, half_left, half_right):
+    
+    '''
+    Annotate variants based on position relative to chromosome arm ends (within half the size of the prediction window of end).
+    One of 5 annotations: 
+    1. chrom_mid: not near chromosome arm ends
+    2. chrom_start: near chromosome start
+    3. chrom_centro_left: near the left end of centromere (left arm)
+    4. chrom_centro_right: near the right end of centromere (right arm)
+    5. chrom_end: near chromosome end.
+    5. centromere: overlaps centromere. These variants will not be processed
+    
+    '''
+    
 
     # Define variant position with respect to chromosome start and end
 
@@ -258,6 +288,16 @@ def get_variant_position(CHR, POS, var_len, half_left, half_right):
 
 
 def get_variant_type(REF, ALT):
+    
+    '''
+    Get the type of variant from a REF and ALT allele of sequences.
+    One of 4 variant types:
+    1. Deletion
+    2. Insertion
+    3. SNP: single nucleotide variant
+    4. MNP: multiple nucleotide variant
+    
+    '''
 
     # Annotate variant as one of the 6 categories below based on REF and ALT allele
     
@@ -277,26 +317,137 @@ def get_variant_type(REF, ALT):
 
 def get_bin(x):
     
-    # Get the bin number based on bp number in a sequence (ex: 2500th bp is in the 2nd bin)
-    # x is the distance to the start of the sequence, not the distance to mat_start !!!
+    '''
+    Get the bin number based on the base pair number in a sequence (ex: 2500th bp is in the 2nd bin for bins of size 2048).
+    Note: x is the distance to the start of the sequence, not the distance to mat_start !!!
     
-    x_bin = math.ceil(x/pixel_size) - 32
+    '''
+    
+    x_bin = math.ceil(x/bin_size) - 32
     
     return x_bin
 
 
 
 
+def crop_sequence(seq, length):
+    
+    '''
+    Remove sequence from either end to make sequece size match required sequence length.
+    
+    '''
+    
+    to_remove = (len(seq) - length)/2
+
+    if to_remove == 0.5:
+        seq = seq[1:]
+    else:
+        seq = seq[math.ceil(to_remove) : -math.floor(to_remove)]
+        
+    return seq
+
+
+def from_upper_triu(vector_repr, matrix_len, num_diags):
+    
+    '''
+    Get a matrix from a vector representatin of the upper triangle.
+    
+    '''
+    
+    z = np.zeros((matrix_len,matrix_len))
+    triu_tup = np.triu_indices(matrix_len,num_diags)
+    
+    z[triu_tup] = vector_repr
+    
+    for i in range(-num_diags+1,num_diags):
+        set_diag(z, np.nan, i)
+        
+    return z + z.T
+
+
+
+
 
 # # # # # # # # # # # # # # # # # # 
-# # # Generating sequence # # # # #
+# # Generating non-BND sequences # #
 
 
 
-def get_sequence(CHR, POS, REF, ALT, shift):
+class get_alleles:
+    
+    '''
+    Get reference and alternate alleles from symbolic alleles. Only supports deletions, duplications and inversions.
+    
+    '''
+    
+    def __init__(self, CHR, POS, END):
+        self.CHR = CHR
+        self.POS = POS
+        self.END = END
+
+    def get_alleles_DEL(self):
+
+        REF = fasta_open.fetch(self.CHR, self.POS - 1, self.END).upper()
+        ALT = REF[0]
+
+        return REF, ALT
+
+
+    def get_alleles_DUP(self):
+
+        # Insert duplicated sequence before POS
+        ALT = fasta_open.fetch(self.CHR, self.POS - 1, self.END).upper()
+        REF = ALT[0]
+
+        return REF, ALT
+
+
+    def get_alleles_INV(self):
+
+        REF = fasta_open.fetch(self.CHR, self.POS - 1, self.END).upper()
+        ALT = REF[0] + str(Seq(REF[1:]).reverse_complement())
+
+        return REF, ALT
+
+
+
+
+
+def adjust_seq_ends(centro_start, centro_stop, chrom_max, position, adjust, shift):
+           
+    '''
+    Get start (adjust = 1) or end (adjust = MB) of sequence for prediction based on variant position \
+    with respect to chromosome arm ends (defined in get_variant_position function).
+    
+    '''
+    
+    if position == 'chrom_start':
+        seq_pos = 1 + adjust + abs(shift) # 1 is added so the position is never 0. coordinates are 1-based
+        
+    elif position == 'chrom_centro_right':
+        seq_pos = centro_stop + adjust + abs(shift)         
+
+    elif position == 'chrom_end':
+        seq_pos = chrom_max - MB + adjust - abs(shift)       
+
+    elif position == 'chrom_centro_left':
+        seq_pos = centro_start - MB + adjust - abs(shift) 
+        
+        
+    return seq_pos
+
+
+
+
+def get_sequences(CHR, POS, REF, ALT, shift, revcomp: bool):
   
-    # Get reference and alternate sequence from REF and ALT allele using reference genome 
-    # use positive sign for a right shift and negative for a left shift
+    '''
+    Get reference and alternate sequence for prediction from REF and ALT alleles by incorporating ALT into the reference genome.
+    Requires ALT allele to be a sequence and not a symbolic allele.
+    Use positive sign for a right shift and negative for a left shift.
+    revcomp: Take the reverse compliment of the resulting sequence.
+    
+    '''
 
     # Get reference sequence
     
@@ -306,11 +457,11 @@ def get_sequence(CHR, POS, REF, ALT, shift):
     REF_half_right = math.floor((MB - REF_len)/2) + shift
 
     
-    # Annotate whether variant is near end of chromosome arms
-    if len(REF) <= len(ALT): # For SNPs, MNPs, Insertions
+    # Annotate whether variant position with respect to chromosome arms ends
+    if len(REF) <= len(ALT):
         var_position = get_variant_position(CHR, POS, REF_len, REF_half_left, REF_half_right)
   
-    elif len(REF) > len(ALT): # For Deletions        
+    elif len(REF) > len(ALT):       
         ALT_len = len(ALT)
         ALT_half_left = math.ceil((MB - ALT_len)/2) - shift
         ALT_half_right = math.floor((MB - ALT_len)/2) + shift   
@@ -318,76 +469,58 @@ def get_sequence(CHR, POS, REF, ALT, shift):
     
 
     # Get last coordinate of chromosome
-    chrom_max = int(chrom_lengths[chrom_lengths.CHROM == CHR[3:]]['chrom_max']) 
+    chrom_max = int(chrom_lengths[chrom_lengths.CHROM == CHR[3:]]['chrom_max'])
     
-    # Get centromere coordinate
-    centro_start = int(centromere_coords[centromere_coords.CHROM == CHR]['centro_start'])
-    centro_stop = int(centromere_coords[centromere_coords.CHROM == CHR]['centro_stop'])
+    # Get centromere coordinates
+    centro_start = int(centromere_coords[centromere_coords.CHROM == CHR]['centro_start']) + 1
+    centro_stop = int(centromere_coords[centromere_coords.CHROM == CHR]['centro_stop']) + 1
     
     
     # Get start and end of reference sequence
-
     if var_position == "chrom_mid":
         REF_start = POS - REF_half_left
         REF_stop = REF_start + MB 
-
-    elif var_position == "chrom_start": 
-        REF_start = 0 + abs(shift)
-        REF_stop = MB + abs(shift)
-        print("Warning: Variant not centered; too close to start of chromosome.")
-
-    elif var_position == "chrom_centro_left": 
-        REF_start = centro_start - MB - abs(shift)
-        REF_stop = centro_start - abs(shift)
-        print("Warning: Variant not centered; too close to left end of centromere.")
-        
-    elif var_position == "chrom_centro_right": 
-        REF_start = centro_stop + abs(shift)
-        REF_stop = centro_stop + MB + abs(shift)
-        print("Warning: Variant not centered; too close to right end of centromere.")
-
-    elif var_position == "chrom_end": 
-        REF_start = chrom_max - MB - abs(shift)
-        REF_stop = chrom_max - abs(shift)
-        print("Warning: Variant not centered; too close to end of chromosome.")
-        
     elif var_position == "centromere":
         raise ValueError('Centromeric variant')
-
+    else:
+        REF_start = adjust_seq_ends(centro_start, centro_stop, chrom_max, var_position, 0, shift)
+        REF_stop = adjust_seq_ends(centro_start, centro_stop, chrom_max, var_position, MB, shift)
+        print("Warning: Variant not centered; too close to chromosome arm ends.")
         
         
     # Get reference sequence
-    REF_seq = fasta_open.fetch(CHR, REF_start, REF_stop).upper()
+    REF_seq = fasta_open.fetch(CHR, REF_start - 1, REF_stop - 1).upper()
 
 
-    # Error if Ns are more than 5% of sequence
+    # Error if N composition is more than 5% of sequence
     if Counter(REF_seq)['N']/MB*100 > 5:
         raise ValueError('N composition greater than 5%')
 
 
 
-    # Make sure that reference sequence matches given REF
+    # Error if reference sequence does not match given REF
 
     if var_position == "chrom_mid":
-        if REF_seq[(REF_half_left - 1) : (REF_half_left - 1 + REF_len)] != REF:
-            raise ValueError('Reference allele does not match hg38.')
+        var_rel_pos_REF = REF_half_left
 
     elif var_position == "chrom_start": 
-        if REF_seq[(POS - abs(shift) - 1) : (POS - abs(shift) - 1 + REF_len)] != REF:
-            raise ValueError('Reference allele does not match hg38.')
+        var_rel_pos_REF = POS - abs(shift) - 1
 
     elif var_position == "chrom_centro_right": 
-        POS_adj = POS - centro_stop - abs(shift)
-        if REF_seq[(POS_adj - 1) : (POS_adj - 1 + REF_len)] != REF:
-            raise ValueError('Reference allele does not match hg38.')
+        var_rel_pos_REF = POS - centro_stop - abs(shift)
 
     elif var_position in ["chrom_end", "chrom_centro_left"]: 
-        if REF_seq[-(REF_stop - POS + 1) : -(REF_stop - POS + 1 - REF_len)] != REF:
-            raise ValueError('Reference allele does not match hg38.')
+        var_rel_pos_REF = -(REF_stop - POS)
 
 
+    if REF_seq[var_rel_pos_REF : var_rel_pos_REF + REF_len] != REF:
+        raise ValueError('Reference allele does not match hg38.')
+            
+            
+            
+    # Error if reference sequence is not the right length      
     if len(REF_seq) != MB:
-            raise ValueError('Reference sequence generated is not the right length.')
+        raise ValueError('Reference sequence generated is not the right length.')
 
 
 
@@ -400,30 +533,24 @@ def get_sequence(CHR, POS, REF, ALT, shift):
 
         ALT_seq = REF_seq
 
-        if var_position == "chrom_mid":
-            ALT_seq = ALT_seq[:(REF_half_left - 1)] + ALT + ALT_seq[(REF_half_left - 1 + REF_len):]
-
-        elif var_position == "chrom_start": 
-            ALT_seq = ALT_seq[:(POS - abs(shift) - 1)] + ALT + ALT_seq[(POS - abs(shift) - 1 + REF_len):]
-            
-        elif var_position == "chrom_centro_right": 
-            POS_adj = POS - centro_stop - abs(shift)
-            ALT_seq = ALT_seq[:(POS_adj - 1)] + ALT + ALT_seq[(POS_adj - 1 + REF_len):]
-
-        elif var_position in ["chrom_end", "chrom_centro_left"]: 
-            ALT_seq = ALT_seq[:-(REF_stop - POS + 1)] + ALT + ALT_seq[-(REF_stop - POS + 1 - REF_len):]
-            
-            
+        ALT_seq = ALT_seq[:var_rel_pos_REF] + ALT + ALT_seq[var_rel_pos_REF + REF_len:]
 
 
+        var_rel_pos_ALT = var_rel_pos_REF
+        
         # Chop off ends of alternate sequence if it's longer 
         if len(ALT_seq) > len(REF_seq):
             to_remove = (len(ALT_seq) - len(REF_seq))/2
 
             if to_remove == 0.5:
                 ALT_seq = ALT_seq[1:]
+                var_rel_pos_ALT = var_rel_pos_REF - 1
+                
             else:
                 ALT_seq = ALT_seq[math.ceil(to_remove) : -math.floor(to_remove)]
+                var_rel_pos_ALT = var_rel_pos_REF - math.ceil(to_remove)
+                
+            
 
 
     # For Deletions
@@ -440,165 +567,66 @@ def get_sequence(CHR, POS, REF, ALT, shift):
             ALT_start = REF_start - to_add_left
             ALT_stop = REF_stop + to_add_right
 
-        if var_position == "chrom_start": 
-            ALT_start = 0 + abs(shift)
-            ALT_stop = MB + del_len + abs(shift)
+        elif var_position in ["chrom_start", "chrom_centro_right"]: 
+            ALT_start = adjust_seq_ends(centro_start, centro_stop, chrom_max, var_position, 0, shift)
+            ALT_stop = adjust_seq_ends(centro_start, centro_stop, chrom_max, var_position, MB + del_len, shift)
             
-        if var_position == "chrom_centro_left": 
-            ALT_start = centro_start - MB - del_len - abs(shift)
-            ALT_stop = centro_start - abs(shift)
-
-        if var_position == "chrom_centro_right": 
-            ALT_start = centro_stop + abs(shift)
-            ALT_stop = centro_stop + MB + del_len + abs(shift)
-
-        if var_position == "chrom_end": 
-            ALT_start = chrom_max - MB - del_len - abs(shift)
-            ALT_stop = chrom_max - abs(shift)
-            
-            
+        elif var_position in ["chrom_centro_left", "chrom_end"]: 
+            ALT_start = adjust_seq_ends(centro_start, centro_stop, chrom_max, var_position, 0 - del_len, shift)
+            ALT_stop = adjust_seq_ends(centro_start, centro_stop, chrom_max, var_position, MB, shift)
+        
+        
+        
         # Get alternate sequence
-        ALT_seq = fasta_open.fetch(CHR, ALT_start, ALT_stop).upper()
+        ALT_seq = fasta_open.fetch(CHR, ALT_start - 1, ALT_stop - 1).upper()
         
         
         
-        # Make sure that alternate sequence matches REF at POS
+        # Error if alternate sequence does not match REF at POS
 
         if var_position == "chrom_mid":
-            if ALT_seq[(REF_half_left - 1 + to_add_left) : (REF_half_left - 1 + to_add_left + REF_len)] != REF:
-                raise ValueError('Sequence for the alternate allele does not match hg38 at REF position.')
+            var_rel_pos_ALT = REF_half_left + to_add_left
 
         elif var_position == "chrom_start": 
-            if ALT_seq[(POS - abs(shift) - 1) : (POS - abs(shift) - 1 + REF_len)] != REF:
-                raise ValueError('Sequence for the alternate allele does not match hg38 at REF position.')
+            var_rel_pos_ALT = POS - abs(shift) - 1
             
         elif var_position == "chrom_centro_right": 
-            POS_adj = POS - centro_stop
-            if ALT_seq[(POS_adj - abs(shift) - 1) : (POS_adj - abs(shift) - 1 + REF_len)] != REF:
-                raise ValueError('Sequence for the alternate allele does not match hg38 at REF position.')
+            var_rel_pos_ALT = POS - centro_stop - abs(shift)
             
         elif var_position in ["chrom_end", "chrom_centro_left"]: 
-            if ALT_seq[-(REF_stop - POS + 1) : -(REF_stop - POS - REF_len + 1)] != REF:
-                raise ValueError('Sequence for the alternate allele does not match hg38 at REF position.')
+            var_rel_pos_ALT = -(REF_stop - POS)
+                
+                
+        if ALT_seq[var_rel_pos_ALT : var_rel_pos_ALT + REF_len] != REF:
+            raise ValueError('Sequence for the alternate allele does not match hg38 at REF position.')
 
 
     
         # Change alternate sequence to match ALT at POS
 
         if var_position == "chrom_mid":
-            # [:N] does not include N but [N:] includes N
-            ALT_seq = ALT_seq[:(REF_half_left - 1 + to_add_left)] + ALT + ALT_seq[(REF_half_left - 1 + to_add_left + REF_len):] 
+            ALT_seq = ALT_seq[:var_rel_pos_ALT - 1] + ALT + ALT_seq[var_rel_pos_ALT + REF_len - 1:] 
 
         elif var_position == "chrom_start": 
-            ALT_seq = ALT_seq[:(POS - abs(shift) - 1)] + ALT + ALT_seq[(POS - abs(shift) - 1 + REF_len):]
+            ALT_seq = ALT_seq[:var_rel_pos_ALT + 1] + ALT + ALT_seq[var_rel_pos_ALT + 1 + REF_len:]
             
         elif var_position == "chrom_centro_right": 
-            POS_adj = POS - centro_stop
-            ALT_seq = ALT_seq[:(POS_adj - abs(shift) - 1)] + ALT + ALT_seq[(POS_adj - abs(shift) - 1 + REF_len):]
+            ALT_seq = ALT_seq[:var_rel_pos_ALT] + ALT + ALT_seq[var_rel_pos_ALT + REF_len:]
             
         elif var_position in ["chrom_end", "chrom_centro_left"]: 
-            ALT_seq = ALT_seq[:-(REF_stop - POS + 1)] + ALT + ALT_seq[-(REF_stop - POS - REF_len + 1):]
+            ALT_seq = ALT_seq[:var_rel_pos_ALT] + ALT + ALT_seq[var_rel_pos_ALT + REF_len:]
 
             
     if len(ALT_seq) != MB:
         raise ValueError('Alternate sequence generated is not the right length.')
          
-        
-    return REF_seq, ALT_seq
-
-
-
-
-
-def get_sequences_BND(CHR, POS, ALT, shift):
-
-    if '[' in ALT:
-
-        if ALT[0] in nt:
-
-            # t[p[
-
-            CHR2 = ALT.split(':')[0].split('[')[1]
-            POS2 = int(ALT.split('[')[1].split(':')[1])
-            ALT_t = ALT.split('[')[0]
-
-            ALT_left = fasta_open.fetch(CHR, POS - half_patch_size + shift, POS).upper() # don't inlcude POS
-
-            ALT_right = fasta_open.fetch(CHR2, POS2 + 1, POS2 + 1 + half_patch_size + shift).upper() 
-
-            REF_for_left = fasta_open.fetch(CHR, POS - half_patch_size + shift, POS + half_patch_size + shift).upper()
-            REF_for_right = fasta_open.fetch(CHR2, POS2 - half_patch_size + shift, POS2 + half_patch_size + shift).upper() 
-
-
-        elif ALT[0] not in nt:
-
-            #  [p[t
-
-            CHR2 = ALT.split(':')[0].split('[')[1]
-            POS2 = int(ALT.split('[')[1].split(':')[1])
-            ALT_t = ALT.split('[')[2]
-
-            ALT_left_revcomp = fasta_open.fetch(CHR2, POS2 + 1, POS2 + 1 + half_patch_size - shift).upper() # don't include POS2
-            ALT_left = str(Seq(ALT_left_revcomp).reverse_complement())
-
-            ALT_right = fasta_open.fetch(CHR, POS + 1, POS + 1 + half_patch_size + shift).upper()
-
-            REF_for_left_revcomp = fasta_open.fetch(CHR2, POS2 - half_patch_size - shift, POS2 + half_patch_size - shift).upper() 
-            REF_for_left = str(Seq(REF_for_left_revcomp).reverse_complement())
-            REF_for_right = fasta_open.fetch(CHR, POS - half_patch_size + shift, POS + half_patch_size + shift).upper() 
-
-
-    elif ']' in ALT:
-
-        if ALT[0] in nt:
-
-            # t]p]
-
-            CHR2 = ALT.split(':')[0].split(']')[1]
-            POS2 = int(ALT.split(']')[1].split(':')[1])
-            ALT_t = ALT.split(']')[0]
-
-            ALT_left = fasta_open.fetch(CHR, POS - half_patch_size + shift, POS).upper() # don't include POS
-
-            ALT_right_revcomp = fasta_open.fetch(CHR2, POS2 - half_patch_size - shift, POS2).upper() # don't include POS2
-            ALT_right = str(Seq(ALT_right_revcomp).reverse_complement())
-
-            REF_for_left = fasta_open.fetch(CHR, POS - half_patch_size + shift, POS + half_patch_size + shift).upper()
-            REF_for_right_revcomp = fasta_open.fetch(CHR2, POS2 - half_patch_size - shift, POS2 + half_patch_size - shift).upper()
-            REF_for_right = str(Seq(REF_for_right_revcomp).reverse_complement())
-
-
-
-        elif ALT[0] not in nt:
-
-            # ]p]t
-
-            CHR2 = ALT.split(':')[0].split(']')[1]
-            POS2 = int(ALT.split(']')[1].split(':')[1])
-            ALT_t = ALT.split(']')[2]
-
-            ALT_left = fasta_open.fetch(CHR2, POS2 - half_patch_size + shift, POS2).upper() # don't include POS2
-
-            ALT_right = fasta_open.fetch(CHR, POS + 1, POS + 1 + half_patch_size + shift).upper()
-
-            REF_for_left = fasta_open.fetch(CHR2, POS2 - half_patch_size + shift, POS2 + half_patch_size + shift).upper() 
-            REF_for_right = fasta_open.fetch(CHR, POS - half_patch_size + shift, POS + half_patch_size + shift).upper() 
-
-
-    ALT_seq = ALT_left + ALT_t + ALT_right
-
-    # chop off the sides if longer than ~1MB
-    if len(ALT_seq) > MB:
-        to_remove = (len(ALT_seq) - MB)/2
-
-        if to_remove == 0.5:
-            ALT_seq = ALT_seq[1:]
-        else:
-            ALT_seq = ALT_seq[math.ceil(to_remove) : -math.floor(to_remove)]
+            
+    # Take reverse compliment of sequence
+    if revcomp:
+        REF_seq, ALT_seq = [str(Seq(x).reverse_complement()) for x in [REF_seq, ALT_seq]]
 
         
-    return REF_for_left, REF_for_right, ALT_seq
-
+    return REF_seq, ALT_seq, [var_rel_pos_REF, var_rel_pos_ALT]
 
 
 
@@ -607,11 +635,675 @@ def get_sequences_BND(CHR, POS, ALT, shift):
 
 
 # # # # # # # # # # # # # # # # # # 
+# # # Generating BND sequences # # #
+
+
+
+def adjust_seq_ends_BND(CHR, position, adjust, shift):
+           
+    '''
+    Get start (adjust = 1) or end (adjust = MB) of sequence for prediction based on variant position \
+    with respect to chromosome arm ends (defined in get_variant_position function).
+    Different from adjust_seq_ends because it does not require centro_start, centro_stop, and chrom_max as input.
+    
+    '''
+    
+    if position == 'chrom_start':
+        seq_pos = adjust + 1 + abs(shift) # 1 is added so the position is never 0. coordinates are 1-based
+
+    elif position == 'chrom_centro_right':
+        seq_pos = int(centromere_coords[centromere_coords.CHROM == CHR]['centro_stop']) + adjust + abs(shift) 
+
+    elif position == 'chrom_end':
+        seq_pos = int(chrom_lengths[chrom_lengths.CHROM == CHR[3:]]['chrom_max']) - MB + adjust - abs(shift) 
+
+    elif position == 'chrom_centro_left':
+        seq_pos = int(centromere_coords[centromere_coords.CHROM == CHR]['centro_start']) - MB + adjust - abs(shift) 
+        
+    return seq_pos
+    
+
+
+    
+  
+    
+    
+class adjust_BND_start_end:
+    
+    '''
+    Class of functions that get genomic coordinates for seuqences for prediciton for BNDs based on the variant position with \
+    respect to chromsome arm ends of both breakends.
+    
+    for t[p[ and ]p]t BNDs:
+    - adjust_left: left breakend is not chrom_mid, right breakend is.
+    - adjust_right: right breakend is not chrom_mid, left breakend is.
+    - adjust_both_start: left and right breakend are chrom_start or chrom_centro_right.
+    
+    for [p[t BNDs:
+    - adjust_left_antisense_left: left breakend is not chrom_mid, right breakend is.
+    - adjust_right_antisense_left: right breakend is not chrom_mid, left breakend is.
+    - adjust_start_end_antisense_left: left breakend is chrom_start or chrom_centro_right, 
+                                       right breakend is chrom_end or chrom_centro_left.
+    - adjust_end_start_antisense_left: left breakend is chrom_end or chrom_centro_left, 
+                                       right breakend is chrom_start or chrom_centro_right.
+    
+    for t]p] BNDs:
+    - adjust_left_antisense_right: left breakend is not chrom_mid, right breakend is.
+    - adjust_right_antisense_right: right breakend is not chrom_mid, left breakend is.
+    - adjust_start_end_antisense_right: left breakend is chrom_start or chrom_centro_right, 
+                                        right breakend is chrom_end or chrom_centro_left.
+    - adjust_end_start_antisense_right: left breakend is chrom_end or chrom_centro_left, 
+                                        right breakend is chrom_start or chrom_centro_right.
+    
+    
+    
+    '''
+    
+    def __init__(self, CHR_left, POS_left, left_position, 
+                 CHR_right, POS_right, right_position, 
+                 left_start, right_end, shift):
+    
+        self.CHR_left = CHR_left
+        self.POS_left = POS_left
+        self.left_position = left_position
+        self.CHR_right = CHR_right
+        self.POS_right = POS_right
+        self.right_position = right_position
+        self.left_start = left_start
+        self.right_end = right_end
+        self.shift = shift
+
+
+    # General 
+
+    def ignore(self):
+        return self.left_start, self.right_end
+
+
+    def raise_error(self):
+        raise ValueError('Cannot generate 1Mb sequence for this chromosomal rearrangement.')
+
+
+
+    # Sense
+
+    def adjust_left(self):
+
+        difference = adjust_seq_ends_BND(self.CHR_left, self.left_position, 0, self.shift) - self.left_start
+
+        self.left_start += difference
+        self.right_end += difference
+
+        return self.left_start, self.right_end
+
+
+    def adjust_right(self):
+
+        difference = adjust_seq_ends_BND(self.CHR_right, self.right_position, MB, self.shift) - self.right_end
+
+        self.left_start += difference
+        self.right_end += difference
+
+        return self.left_start, self.right_end
+
+
+    def adjust_both_start(self):
+
+        left_start = adjust_seq_ends_BND(self.CHR_left, self.left_position, 0, self.shift)
+        right_end = adjust_seq_ends_BND(self.CHR_right, self.right_position, MB, self.shift)
+
+        difference = (self.POS_left - left_start) - (self.POS_right - (right_end - MB))
+
+        if difference <=0:
+            # left side is closest to start (chromosome start or right end of centromere)
+            right_end -= difference
+
+        else:
+            left_start += difference
+
+        return left_start, right_end
+
+
+    def adjust_both_end(self):
+
+        left_start = adjust_seq_ends_BND(self.CHR_left, self.left_position, 0, self.shift)
+        right_end = adjust_seq_ends_BND(self.CHR_right, self.right_position, MB, self.shift)
+
+        difference = (left_start + MB - self.POS_left) - (right_end - self.POS_right)
+
+        if difference <=0:
+            # left side is closest to end (chromosome end or left end of centromere)
+            right_end += difference
+
+        else:
+            left_start -= difference
+
+        return left_start, right_end
+
+
+
+
+    # Antisense left
+
+
+    def adjust_left_antisense_left(self):
+
+        difference = adjust_seq_ends_BND(self.CHR_left, self.left_position, MB, self.shift) - self.left_start
+
+        self.left_start += difference 
+        self.right_end -= difference
+
+        return self.left_start, self.right_end
+
+
+
+    def adjust_right_antisense_left(self):
+
+        difference = adjust_seq_ends_BND(self.CHR_right, self.right_position, MB, self.shift) - self.right_end
+
+        self.left_start -= difference
+        self.right_end += difference 
+
+        return self.left_start, self.right_end
+
+
+
+    def adjust_start_end_antisense_left(self):
+
+        left_start = adjust_seq_ends_BND(self.CHR_left, self.left_position, MB, self.shift)
+        right_end = adjust_seq_ends_BND(self.CHR_right, self.right_position, MB, self.shift)
+
+        difference = (self.POS_left - (left_start - MB)) - (right_end - self.POS_right)
+
+        if difference <=0:
+            # left side is closest to edge
+            right_end += difference
+
+        else:
+            left_start += difference
+
+        return left_start, right_end
+
+
+
+    def adjust_end_start_antisense_left(self):
+
+        left_start = adjust_seq_ends_BND(self.CHR_left, self.left_position, MB, self.shift)
+        right_end = adjust_seq_ends_BND(self.CHR_right, self.right_position, MB, self.shift)
+
+        difference = (left_start - self.POS_left) - (self.POS_right - (right_end - MB))
+
+        if difference <=0:
+            # left side is closest to start (chromosome start or right end of centromere)
+            right_end -= difference
+
+        else:
+            left_start -= difference
+
+        return left_start, right_end
+
+
+
+
+    # Antisense right
+
+
+
+    def adjust_left_antisense_right(self):
+
+        difference = adjust_seq_ends_BND(self.CHR_left, self.left_position, 0, self.shift) - self.left_start
+
+        self.left_start += difference
+        self.right_end -= difference
+
+        return self.left_start, self.right_end
+
+
+    def adjust_right_antisense_right(self):
+
+        difference = adjust_seq_ends_BND(self.CHR_right, self.right_position, 0, self.shift) - self.right_end
+
+        self.left_start -= difference
+        self.right_end += difference
+
+        return self.left_start, self.right_end
+
+
+
+    def adjust_start_end_antisense_right(self):
+
+        left_start = adjust_seq_ends_BND(self.CHR_left, self.left_position, 0, self.shift)
+        right_end = adjust_seq_ends_BND(self.CHR_right, self.right_position, 0, self.shift)
+
+        difference = (self.POS_left - left_start) - (MB - (self.POS_right - right_end))
+
+        if difference <=0:
+            # left side is closest to edge
+            right_end += difference
+
+        else:
+            left_start += difference
+
+        return left_start, right_end
+
+
+
+
+    def adjust_end_start_antisense_right(self):
+
+        left_start = adjust_seq_ends_BND(self.CHR_left, self.left_position, 0, self.shift)
+        right_end = adjust_seq_ends_BND(self.CHR_right, self.right_position, 0, self.shift)
+
+        difference = (left_start + MB - self.POS_left) - (self.POS_right - right_end)
+
+        if difference <=0:
+            # left side is closest to edge
+            right_end -= difference
+
+        else:
+            left_start -= difference
+
+        return left_start, right_end
+
+    
+    
+get_BND_ALT_sense_by_pos = {'chrom_mid_chrom_mid': ['ignore', 
+                                                    'ignore', 
+                                                    'ignore'], # M M
+                         'chrom_mid_chrom_start': ['adjust_right', 
+                                                   'adjust_right_antisense_left', 
+                                                   'adjust_right_antisense_right'], # M S
+                         'chrom_mid_chrom_centro_left': ['adjust_right', 
+                                                         'adjust_right_antisense_left', 
+                                                         'adjust_right_antisense_right'], # M S
+                         'chrom_mid_chrom_centro_right': ['adjust_right', 
+                                                          'adjust_right_antisense_left', 
+                                                          'adjust_right_antisense_right'], # M S
+                         'chrom_mid_chrom_end': ['adjust_right', 
+                                                 'adjust_right_antisense_left', 
+                                                 'adjust_right_antisense_right'], # M S
+                         'chrom_start_chrom_mid': ['adjust_left', 
+                                                   'adjust_left_antisense_left', 
+                                                   'adjust_left_antisense_right'], # S M
+                         'chrom_start_chrom_start': ['adjust_both_start', 
+                                                     'raise_error', 
+                                                     'raise_error'], # S S
+                         'chrom_start_chrom_centro_left': ['raise_error',
+                                                           'adjust_start_end_antisense_left',
+                                                           'adjust_start_end_antisense_right'], # S E
+                         'chrom_start_chrom_centro_right': ['adjust_both_start', 
+                                                            'raise_error', 
+                                                            'raise_error'], # S S
+                         'chrom_start_chrom_end': ['raise_error',
+                                                   'adjust_start_end_antisense_left',
+                                                   'adjust_start_end_antisense_right'], # S E
+                         'chrom_centro_left_chrom_mid': ['adjust_left', 
+                                                         'adjust_left_antisense_left', 
+                                                         'adjust_left_antisense_right'], # E M
+                         'chrom_centro_left_chrom_start': ['raise_error',
+                                                           'adjust_end_start_antisense_left',
+                                                           'adjust_end_start_antisense_right'], # E S
+                         'chrom_centro_left_chrom_centro_left': ['adjust_both_end', 
+                                                                 'raise_error', 
+                                                                 'raise_error'], # E E
+                         'chrom_centro_left_chrom_centro_right': ['raise_error',
+                                                                  'adjust_end_start_antisense_left',
+                                                                  'adjust_end_start_antisense_right'], # E S
+                         'chrom_centro_left_chrom_end': ['adjust_both_end', 
+                                                         'raise_error', 
+                                                         'raise_error'], # E E
+                         'chrom_centro_right_chrom_mid': ['adjust_left', 
+                                                          'adjust_left_antisense_left', 
+                                                          'adjust_left_antisense_right'], # S M
+                         'chrom_centro_right_chrom_start': ['adjust_both_start', 
+                                                            'raise_error', 
+                                                            'raise_error'], # S S
+                         'chrom_centro_right_chrom_centro_left': ['raise_error',
+                                                                  'adjust_start_end_antisense_left',
+                                                                  'adjust_start_end_antisense_right'], # S E
+                         'chrom_centro_right_chrom_centro_right': ['adjust_both_start', 
+                                                                   'raise_error', 
+                                                                   'raise_error'], # S S
+                         'chrom_centro_right_chrom_end': ['raise_error',
+                                                          'adjust_start_end_antisense_left',
+                                                          'adjust_start_end_antisense_right'], # S E
+                         'chrom_end_chrom_mid': ['adjust_left', 
+                                                 'adjust_left_antisense_left', 
+                                                 'adjust_left_antisense_right'], # E M
+                         'chrom_end_chrom_start': ['raise_error', 
+                                                   'adjust_end_start_antisense_left',
+                                                   'adjust_end_start_antisense_right'], # E S
+                         'chrom_end_chrom_centro_left': ['adjust_both_end', 
+                                                         'raise_error', 
+                                                         'raise_error'], # E E
+                         'chrom_end_chrom_centro_right': ['raise_error',
+                                                          'adjust_end_start_antisense_left',
+                                                          'adjust_end_start_antisense_right'], # E S
+                         'chrom_end_chrom_end': ['adjust_both_end', 
+                                                 'raise_error', 
+                                                 'raise_error']} # E E
+
+
+    
+
+
+def get_BND_ALT_sense(CHR_left, POS_left, left_position, CHR_right, POS_right, right_position, shift):
+    
+    '''
+    This function applies to t[p[ and ]p]t BNDs.
+    
+    Get sequences corresponding to the left and right side of the alternate allele of the BND and two references.
+    Also get BND_rel_pos which is the relative position of the breakend in the generated reference sequences. 
+    That corresponds to the end of the left alternate sequnce and the beginning of the right alternate sequence. 
+    
+    Note: 1 is subtracted in fasta_open.fetch because the hg38 fasta file is 0-based and all the coordinates are 1-based.
+    If it's not subtracted, it's so POS is included in the sequence if it's at the end
+
+    '''
+    
+    left_start = POS_left - half_patch_size + shift
+    right_end = POS_right + half_patch_size + shift
+    
+    
+    # Adjust start and end positions based on left and right variant positions
+    adjust_BND_start_end_class = adjust_BND_start_end(CHR_left, POS_left, left_position, 
+                                                      CHR_right, POS_right, right_position, 
+                                                      left_start, right_end, shift)
+    left_start, right_end = getattr(adjust_BND_start_end_class, 
+                                    get_BND_ALT_sense_by_pos[left_position+'_'+right_position][0])()        
+    
+    
+    # Get relative position of breakend with respect to start of map
+    BND_rel_pos = POS_left - left_start
+    
+    if BND_rel_pos != target_length_cropped/2:
+        print("Warning: Variant not centered; too close to chromosome arm ends")
+    
+    
+    # Get sequences with adjusted sequence ends
+    ALT_left = fasta_open.fetch(CHR_left, left_start, POS_left).upper()
+
+    ALT_right = fasta_open.fetch(CHR_right, POS_right - 1, right_end - 1).upper() 
+
+    REF_for_left = fasta_open.fetch(CHR_left, left_start, left_start + MB).upper()
+    REF_for_right = fasta_open.fetch(CHR_right, right_end - 1 - MB, right_end - 1).upper() 
+          
+    
+    return ALT_left, ALT_right, REF_for_left, REF_for_right, BND_rel_pos
+    
+    
+
+
+def get_BND_ALT_antisense_left(CHR_left, POS_left, left_position, CHR_right, POS_right, right_position, shift):      
+    
+    '''
+    This function applies to [p[t BNDs.
+    
+    Get sequences corresponding to the left and right side of the alternate allele of the BND and two references.
+    Also get BND_rel_pos which is the relative position of the breakend in the generated reference sequences. 
+    That corresponds to the end of the left alternate sequnce and the beginning of the right alternate sequence. 
+    
+    Note: 1 is subtracted in fasta_open.fetch because the hg38 fasta file is 0-based and all the coordinates are 1-based.
+    If it's not subtracted, it's so POS is included in the sequence if it's at the end
+
+    '''
+
+    left_start = POS_left - (- half_patch_size + shift)
+    right_end = POS_right + half_patch_size + shift
+
+    
+    # Adjust start and end positions based on left and right variant positions
+    adjust_BND_start_end_class = adjust_BND_start_end(CHR_left, POS_left, left_position, 
+                                                      CHR_right, POS_right, right_position, 
+                                                      left_start, right_end, shift)
+    left_start, right_end = getattr(adjust_BND_start_end_class, 
+                                    get_BND_ALT_sense_by_pos[left_position+'_'+right_position][1])()
+    
+    
+    # Get relative position of breakend with respect to start of map
+    BND_rel_pos = left_start - POS_left
+    
+    if BND_rel_pos != target_length_cropped/2:
+        print("Warning: Variant not centered; too close to chromosome arm ends")
+      
+        
+    # Get sequences with adjusted sequence ends
+    ALT_left_revcomp = fasta_open.fetch(CHR_left, POS_left - 1, left_start - 1).upper()
+    ALT_left = str(Seq(ALT_left_revcomp).reverse_complement())
+
+    ALT_right = fasta_open.fetch(CHR_right, POS_right - 1, right_end - 1).upper()
+
+    REF_for_left_revcomp = fasta_open.fetch(CHR_left, left_start - 1 - MB, left_start - 1).upper() 
+    REF_for_left = str(Seq(REF_for_left_revcomp).reverse_complement())
+    REF_for_right = fasta_open.fetch(CHR_right, right_end - 1 - MB, right_end - 1).upper() 
+          
+    return ALT_left, ALT_right, REF_for_left, REF_for_right, BND_rel_pos
+
+
+
+
+
+def get_BND_ALT_antisense_right(CHR_left, POS_left, left_position, CHR_right, POS_right, right_position, shift): 
+    
+    '''
+    This function applies to t]p] BNDs.
+    
+    Get sequences corresponding to the left and right side of the alternate allele of the BND and two references.
+    Also get BND_rel_pos which is the relative position of the breakend in the generated reference sequences. 
+    That corresponds to the end of the left alternate sequnce and the beginning of the right alternate sequence. 
+    
+    Note: 1 is subtracted in fasta_open.fetch because the hg38 fasta file is 0-based and all the coordinates are 1-based.
+    If it's not subtracted, it's so POS is included in the sequence if it's at the end
+
+    '''
+
+    left_start = POS_left - half_patch_size + shift
+    right_end = POS_right - (half_patch_size + shift)
+
+ 
+    # Adjust start and end positions based on left and right variant positions
+    adjust_BND_start_end_class = adjust_BND_start_end(CHR_left, POS_left, left_position, 
+                                                      CHR_right, POS_right, right_position, 
+                                                      left_start, right_end, shift)
+    left_start, right_end = getattr(adjust_BND_start_end_class, 
+                                    get_BND_ALT_sense_by_pos[left_position+'_'+right_position][2])()
+    
+    
+    # Get relative position of breakend with respect to start of map
+    BND_rel_pos = POS_left - left_start
+    
+    if BND_rel_pos != target_length_cropped/2:
+        print("Warning: Variant not centered; too close to chromosome arm ends")
+      
+
+    # Get sequences with adjusted sequence ends
+    ALT_left = fasta_open.fetch(CHR_left, left_start, POS_left).upper()
+
+    ALT_right_revcomp = fasta_open.fetch(CHR_right, right_end, POS_right).upper()
+    ALT_right = str(Seq(ALT_right_revcomp).reverse_complement())
+
+    REF_for_left = fasta_open.fetch(CHR_left, left_start, left_start + MB).upper()
+    REF_for_right_revcomp = fasta_open.fetch(CHR_right, right_end, right_end + MB).upper()
+    REF_for_right = str(Seq(REF_for_right_revcomp).reverse_complement())
+          
+    
+    return ALT_left, ALT_right, REF_for_left, REF_for_right, BND_rel_pos
+            
+            
+
+
+def get_sequences_BND(CHR, POS, REF, ALT, shift, revcomp):
+    
+    '''
+    This function applies all BNDs.
+    
+    Get sequences corresponding to the alternate BND allele (joined breakends) and two references (one from each locus that was joined). To do so, get info for the second region (CHR2, POS2), get sequences, input the alternate allele at the breakend, and crop the ends of the sequence if necessary.
+    Also get BND_rel_pos which is the relative position of the breakend in the generated reference sequences. 
+    That corresponds to the end of the left alternate sequnce and the beginning of the right alternate sequence. 
+    
+    Note: 1 is subtracted in fasta_open.fetch because the hg38 fasta file is 0-based and all the coordinates are 1-based.
+    If it's not subtracted, it's so POS is included in the sequence if it's at the end
+
+    '''
+    
+    var_position = get_variant_position(CHR, POS, 0, half_patch_size - shift, half_patch_size + shift)
+    
+    if var_position == 'centromere':
+        raise ValueError('Centromeric variant')
+
+    if '[' in ALT:
+        
+        CHR2 = ALT.split(':')[0].split('[')[1]
+        POS2 = int(ALT.split('[')[1].split(':')[1])
+        
+        var_position2 = get_variant_position(CHR2, POS2, 0, half_patch_size - shift, half_patch_size + shift)
+        
+        if var_position2 == 'centromere':
+            raise ValueError('Centromeric variant')
+
+        if ALT[0] in nt:
+
+            # t[p[
+            
+            ALT_t = ALT.split('[')[0]
+            
+            ALT_left, ALT_right, REF_for_left, REF_for_right, BND_rel_pos = get_BND_ALT_sense(CHR, POS, var_position, 
+                                                                                             CHR2, POS2, var_position2, 
+                                                                                             shift)
+
+
+
+        elif ALT[0] not in nt:
+
+            #  [p[t
+            
+            ALT_t = ALT.split('[')[2]
+
+            ALT_left, ALT_right, REF_for_left, REF_for_right, BND_rel_pos = get_BND_ALT_antisense_left(CHR2, POS2, var_position2, 
+                                                                                                      CHR, POS, var_position, 
+                                                                                                      shift)
+
+
+    elif ']' in ALT:
+        
+        CHR2 = ALT.split(':')[0].split(']')[1]
+        POS2 = int(ALT.split(']')[1].split(':')[1])
+        
+        var_position2 = get_variant_position(CHR2, POS2, 0, half_patch_size - shift, half_patch_size + shift)
+        
+        if var_position2 == 'centromere':
+            raise ValueError('Centromeric variant')
+
+        if ALT[0] in nt:
+
+            # t]p]
+            
+            ALT_t = ALT.split(']')[0]
+
+            ALT_left, ALT_right, REF_for_left, REF_for_right, BND_rel_pos = get_BND_ALT_antisense_right(CHR, POS, var_position, 
+                                                                                                       CHR2, POS2, var_position2, 
+                                                                                                       shift)
+
+
+        elif ALT[0] not in nt:
+
+            # ]p]t
+
+            ALT_t = ALT.split(']')[2]
+
+            ALT_left, ALT_right, REF_for_left, REF_for_right, BND_rel_pos = get_BND_ALT_sense(CHR2, POS2, var_position2, 
+                                                                                             CHR, POS, var_position, 
+                                                                                             shift)
+
+
+    
+    if ALT_t != REF:
+        
+        # Since we are already including REF, remove it from ALT_t
+        if ALT_t.startswith(REF):
+            ALT_t = ALT_t[1:]
+        elif ALT_t.endswith(REF):
+            ALT_t = ALT_t[:-1]
+        else:
+            raise ValueError('Unexpected format: BND ALT does not include REF')
+    
+        # Create ALT sequence
+        ALT_seq = ALT_left + ALT_t + ALT_right
+        
+        # chop off the sides if longer than ~1MB
+        ALT_seq = crop_sequence(ALT_seq, MB)
+        
+    else:
+        # Create ALT sequence
+        ALT_seq = ALT_left + ALT_right
+        
+        
+    if revcomp:
+        REF_for_left, REF_for_right, ALT_seq = [str(Seq(x).reverse_complement()) for x in [REF_for_left, REF_for_right, ALT_seq]]
+
+        
+        
+    return REF_for_left, REF_for_right, ALT_seq, [BND_rel_pos]
+
+
+
+
+
+
+# # # # # # # # # # # # # # # # # # 
+# # # # get_sequences_SV # # # # #
+
+
+def get_sequences_SV(CHR, POS, REF, ALT, END, SVTYPE, shift, revcomp):
+    
+    '''
+    Get reference and alternate sequences by pulling in different functions depending on the REF and ALT in put and the SV type.
+    The output is a list of sequences and a relative position for the variant.
+    
+    For simple variants or non-BND SVs:
+    sequences is [REF_seq, ALT_seq, var_rel_pos], where var_rel_pos is [var_rel_pos_REF, var_rel_pos_ALT]
+    
+    For BNDs:
+    sequences is [REF_seq_left, REF_seq_right, ALT_seq, var_rel_pos]
+    
+    REF_seq is the reference sequence (left and right for each side of the breakend if BND), ALT_seq is the alternate sequence and var_rel_pos is the position of the variant (start of non-BND or breakend of BND) relative to the start of the given sequences (ex. var_rel_pos = 1000 is the 1000th bp in the sequence).
+    
+    '''
+    
+    if all([x in nt for x in REF]) and all([x in nt for x in ALT]):
+        
+        sequences = get_sequences(CHR, POS, REF, ALT, shift, revcomp)        
+    
+    elif SVTYPE in ["DEL", "DUP", "INV"]:
+        
+        REF, ALT = getattr(get_alleles(CHR, POS, END), f'get_alleles_{SVTYPE}')() 
+    
+        if len(REF) > svlen_limit or len(ALT) > svlen_limit:
+            raise ValueError(f'Variant larger than {svlen_limit} bp cutoff.')
+        
+        sequences = get_sequences(CHR, POS, REF, ALT, shift, revcomp)
+               
+    elif SVTYPE == "BND":
+
+        sequences = get_sequences_BND(CHR, POS, REF, ALT, shift, revcomp)
+        
+    else:
+        raise ValueError('SV type not supported.')
+      
+    return sequences
+
+
+
+# # # # # # # # # # # # # # # # # # 
 # # # # # Running Akita # # # # # # 
 
 def vector_from_seq(seq):
     
-    # Get predicted matrix from ~1MB sequence
+    '''
+    Get predicted matrix from ~1 MB input sequence using Akita. 
+    pred_targets is a 1D vector that corresponds to the upper tringle of a 448x448 array with the contact frequency at each 2048 bp bin corresponding to a 917,504 bp sequence (32 bins are cropped on each end from the prediction).
+    
+    '''
     
     seq_1hot = dna_io.dna_1hot(seq) 
 
@@ -634,39 +1326,83 @@ def vector_from_seq(seq):
 
 
 
-def from_upper_triu(vector_repr, matrix_len, num_diags):
-    z = np.zeros((matrix_len,matrix_len))
-    triu_tup = np.triu_indices(matrix_len,num_diags)
+def mat_from_vector(vector_repr, matrix_len = target_length_cropped, num_diags = 2):
+    
+    '''
+    This applies to non-BND predcitions.
+    
+    Get predicted matrix from Akita predictions. 
+    Output is a 448x448 array with the contact frequency at each 2048 bp bin corresponding to a 917,504 bp sequence (32 bins are cropped on each end from the prediction).
+    
+    '''
+        
+    z = np.zeros((matrix_len, matrix_len))
+    triu_tup = np.triu_indices(matrix_len, num_diags)
     z[triu_tup] = vector_repr
-    for i in range(-num_diags+1,num_diags):
+    
+    for i in range(-num_diags + 1, num_diags):
         set_diag(z, np.nan, i)
+        
     return z + z.T
 
 
 
-def mat_from_vector(pred_targets):
+
+def get_left_BND_map(pred_matrix, BND_rel_pos_map):
     
-    mat = from_upper_triu(pred_targets,target_length_cropped,2)
-    #mat = interp_all_nans(mat) 
-
-    return mat
-
-
-
-
-def get_left_BND_map(pred_matrix, shift):
-    # take upper left quarter (or more or less if shifted) of the matrix
-    left_BND_map = pred_matrix[:int(bins/2 - round(shift/pixel_size)),
-                               :int(bins/2 - round(shift/pixel_size))]
+    '''
+    Take upper left quarter (or more or less if shifted) of the matrix.
+    
+    '''
+    
+    left_BND_map = pred_matrix[:int(BND_rel_pos_map),
+                               :int(BND_rel_pos_map)]
     
     return left_BND_map
     
-def get_right_BND_map(pred_matrix, shift):
-    # take lower right quarter (or more or less if shifted) of the matrix
-    right_BND_map = pred_matrix[int(bins/2 - round(shift/pixel_size)):,
-                                int(bins/2 - round(shift/pixel_size)):]
+    
+    
+def get_right_BND_map(pred_matrix, BND_rel_pos_map):
+    
+    '''
+    Take lower right quarter (or more or less if shifted) of the matrix.
+    
+    '''
+    
+    right_BND_map = pred_matrix[int(BND_rel_pos_map):,
+                                int(BND_rel_pos_map):]
     
     return right_BND_map
+
+
+
+
+def assemple_BND_mats(vector_repr_L, vector_repr_R, BND_rel_pos_map, matrix_len = target_length_cropped, num_diags = 2):
+    
+    '''
+    This applies to BND predcitions.
+    
+    Get predicted matrix from Akita predictions. 
+    Output is a 448x448 array with the contact frequency at each 2048 bp bin corresponding to a 917,504 bp sequence (32 bins are cropped on each end from the prediction).
+    
+    '''
+    
+    z = np.zeros((matrix_len,matrix_len))
+
+    # make df out of matrix indices and filter to get top left and bottom right parts
+    indices = np.triu_indices(matrix_len, num_diags)
+    indices = pd.DataFrame(np.column_stack(indices), columns = ['rows', 'cols'])
+
+    indices_L = tuple(indices.query('cols < @BND_rel_pos_map').T.apply(np.array, axis=1))
+    indices_R = tuple(indices.query('rows >= @BND_rel_pos_map').T.apply(np.array, axis=1))
+    
+    z[indices_L] = vector_repr_L
+    z[indices_R] = vector_repr_R
+    
+    for i in range(-num_diags+1,num_diags):
+        set_diag(z, np.nan, i)
+        
+    return z + z.T
 
 
 
@@ -674,7 +1410,12 @@ def get_right_BND_map(pred_matrix, shift):
 
 def mask_matrices(CHR, POS, REF, ALT, REF_pred, ALT_pred, shift):
 
-    # Mask reference and alternate predicted matrices, based on the type of variant, when they are centered in the sequence
+    '''
+    This applied to non-BND predicted matrices.
+    
+    Mask reference and alternate predicted matrices based on the type of variant.
+    
+    '''
     
     variant_type = get_variant_type(REF, ALT)
     
@@ -886,147 +1627,178 @@ def mask_matrices(CHR, POS, REF, ALT, REF_pred, ALT_pred, shift):
 
 
 
+
+
+
 # # # # # # # # # # # # # # # # # # 
 # # Getting disruption scores # # #
 
 
-def get_MSE_from_vector(vector1, vector2):
 
-    # Get disruption score between wt and variant vectors
+class scoring_map_methods:
     
-    # A vecotr of sum of squared differences for each row of matrix 
-    sub_vec = [x - y for x,y in zip(vector1, vector2)]
+    '''
+    Define the function necessary for calculating disruption scores based on map-motivated scoring methods. 
+    Source: https://www.biorxiv.org/content/10.1101/2023.04.04.535480v1.
     
-    # Get number of bins that are not nan (not including ones that overlap deletion)
-    non_nan_values = np.count_nonzero(np.invert(np.isnan(sub_vec)))
+    '''
     
-    MSE = np.nansum([x**2 for x in sub_vec])/non_nan_values
+    def __init__(self, map_a, map_b):
+        self.map_a = map_a
+        self.map_b = map_b
 
-    return MSE
-
-
-
-
-def get_scores(CHR, POS, REF, ALT, scores, shift):
+        
+    # Basic methods
     
-    REF_seq, ALT_seq = get_sequence(CHR, POS, REF, ALT, shift)
+    def mse(self): # mean squared error
+        return scoring.mse(self.map_a, self.map_b)
+    
+    def corr(self): # spearman correlation
+        return scoring.spearman(self.map_a, self.map_b)
+    
+    def ssi(self): # structural similarity index
+        return scoring.ssim_map(self.map_a, self.map_b)
+    
+    def scc(self): # stratum adjusted correlation
+        return scoring.scc(self.map_a, self.map_b)
+    
+    
+    # Map-motivated methods
+    
+    def ins(self): # insulation_track
+        return scoring.vectorMethodToScalar(scoring.insulation_track, self.map_a, self.map_b, finalCompMetric = 'mse')
+    
+    def di(self): # DI_track
+        return scoring.vectorMethodToScalar(scoring.DI_track, self.map_a, self.map_b, finalCompMetric = 'mse')
+    
+    def dec(self): # decay_track
+        return scoring.vectorMethodToScalar(scoring.decay_track, self.map_a, self.map_b, finalCompMetric = 'mse')
+    
+    def tri(self): # triangle_track
+        return scoring.vectorMethodToScalar(scoring.triangle_track, self.map_a, self.map_b, finalCompMetric = 'mse')
+    
+    def pca(self): # contact_pca_track
+        return scoring.vectorMethodToScalar(scoring.contact_pca_track, self.map_a, self.map_b, finalCompMetric = 'mse')
+    
+    
+    # Disruption tracks
+    
+    def mse_track(self):
 
-    REF_vector, ALT_vector = vector_from_seq(REF_seq), vector_from_seq(ALT_seq)
+        # Get vector with mean of squared differences for each row 
 
-    if len(REF) > pixel_size/2 or len(ALT) > pixel_size/2:
+        sub_map = self.map_a - self.map_b
 
-        REF_pred, ALT_pred = mat_from_vector(REF_vector), mat_from_vector(ALT_vector)
+        mse_track = []
+        for i in range(0,len(sub_map)):
+
+            # Get non-nan values in ith row
+            non_nan_values = np.count_nonzero(~np.isnan(sub_map[i]))
+
+            # if there are values in ith row, get mean of squared differences
+            if non_nan_values > 0:
+                row_sum = np.nansum([x**2 for x in sub_map[i]])
+                row_avg = row_sum/non_nan_values
+
+            # if the whole ith row is nan, MSE is nan for ith row
+            else:
+                row_avg = np.nan
+
+            # save mean of squared differences for ith row
+            mse_track.append(row_avg)
+
+        mse_track = np.array(mse_track) 
+
+        return mse_track
+    
+    
+    def corr_track(self):
+
+        # Get vector with correlation score for each row
+
+        spearman_list = []
+        for i in range(0,len(self.map_a)):
+
+            non_nan_values = np.count_nonzero(~np.isnan(self.map_b[i]))
+
+            # if there are values in ith row, get mean of squared differences
+            if non_nan_values > 0:
+                spearman_results = spearmanr(self.map_a[i], self.map_b[i], axis=0, nan_policy='omit')[0] # ignores nans
+                spearman_list.append(spearman_results)
+            else:
+                spearman_list.append(np.nan)
+
+        corr_track = np.array(spearman_list)
+
+        return corr_track
+        
+
+
+
+
+def get_scores(CHR, POS, REF, ALT, sequences, SVTYPE, scores, shift, revcomp, get_tracks, get_maps): 
+    
+    '''
+    Get disruption scores, disruption tracks, and/or predicted maps from variants and the sequences generated from them.
+    
+    '''
+    
+    
+    var_rel_pos = sequences[-1]
+    
+    # Error if variant position is too close to end of prediction window
+    if any([int(x) <= bin_size*32 or int(x) >= MB - bin_size*32 for x in var_rel_pos]):
+        raise ValueError('Variant outside prediction window after cropping')
+    
+    
+    # Make prediction
+    sequences = [x for x in sequences if type(x) == str]
+    matrices = [mat_from_vector(vector) for vector in [vector_from_seq(seq) for seq in sequences]]
+    
+    if revcomp:
+        matrices = [np.flipud(np.fliplr(x)) for x in matrices]
+    
+                
+    # Get processed matrices to score
+                     
+    if len(REF) > bin_size/2 or len(ALT) > bin_size/2:
 
         # mask matrices
-        REF_pred, ALT_pred = mask_matrices(CHR, POS, REF, ALT, REF_pred, ALT_pred, shift)
+        matrices = mask_matrices(CHR, POS, REF, ALT, matrices[0], matrices[1], shift)
+    
+    if SVTYPE == "BND":  
+        
+        BND_rel_pos_map = round(var_rel_pos[0]/bin_size - 32)
+        
+        # Get REF and ALT vectors, excluding diagonal 
+        indexes_left = np.triu_indices(BND_rel_pos_map, 2)
+        indexes_right = np.triu_indices(target_length_cropped - BND_rel_pos_map, 2)
 
-        # get masked vectors
-        REF_vector = REF_pred[np.triu_indices(len(REF_pred), 2)]
-        ALT_vector = ALT_pred[np.triu_indices(len(ALT_pred), 2)]
+        REF_L = get_left_BND_map(matrices[0], BND_rel_pos_map)[indexes_left]
+        REF_R = get_right_BND_map(matrices[1], BND_rel_pos_map)[indexes_right]
+        ALT_L = get_left_BND_map(matrices[2], BND_rel_pos_map)[indexes_left]
+        ALT_R = get_right_BND_map(matrices[2], BND_rel_pos_map)[indexes_right]
+
+        matrices = (assemple_BND_mats(REF_L, REF_R, BND_rel_pos_map),
+                    assemple_BND_mats(ALT_L, ALT_R, BND_rel_pos_map))
 
 
+    # Get disruption score and correlation for this variant
     scores_results = {}
+    
+    if get_maps:
+        scores_results['maps'] = [matrices[0], matrices[1]]
+        
+        
     for score in scores:
+        scores_results[score] = getattr(scoring_map_methods(matrices[0], matrices[1]), 
+                                        score)()
         
-        if score == 'corr':
-            correlation, corr_pval = spearmanr(REF_vector, ALT_vector, nan_policy='omit')
-            if corr_pval >= 0.05:
-                correlation = 1
-            scores_results[score] = correlation
+        if get_tracks and score in ['corr', 'mse']:
+            scores_results[f'{score}_track'] = getattr(scoring_map_methods(matrices[0], matrices[1]), 
+                                                       f'{score}_track')()
             
-        elif score == 'mse':
-            mse = get_MSE_from_vector(REF_vector, ALT_vector)
-            scores_results[score] = mse
-        
-   
-    return scores_results
 
-
-def get_scores_BND(REF_pred_L, REF_pred_R, ALT_pred, scores, shift):
-    
-    # Get REF and ALT vectors, excluding diagonal 
-    indexes_left = np.triu_indices(bins/2 - round(shift/pixel_size), 2)
-    indexes_right = np.triu_indices(bins/2 + round(shift/pixel_size), 2)
-
-    REF_L = get_left_BND_map(REF_pred_L, shift)[indexes_left]
-    REF_R = get_right_BND_map(REF_pred_R, shift)[indexes_right]
-    ALT_L = get_left_BND_map(ALT_pred, shift)[indexes_left]
-    ALT_R = get_right_BND_map(ALT_pred, shift)[indexes_right]
-    
-    REF_vector = np.append(REF_L, REF_R)
-    ALT_vector = np.append(ALT_L, ALT_R)
-    
-    scores_results = {}
-    for score in scores:
-        
-        if score == 'corr':
-            correlation, corr_pval = spearmanr(REF_vector, ALT_vector, nan_policy='omit')
-            if corr_pval >= 0.05:
-                correlation = 1
-            scores_results[score] = correlation
-            
-        elif score == 'mse':
-            mse = get_MSE_from_vector(REF_vector, ALT_vector)
-            scores_results[score] = mse
-        
-   
-    return scores_results
-
-
-
-
-
-
-def get_scores_SV(CHR, POS, ALT, END, SVTYPE, scores, shift):
-    
-    # Get new REF and ALT alleles
-
-    if SVTYPE in ["DEL", "DUP", "INV"]:
-        
-        if SVTYPE == "DEL":
-
-            # Get REF and ALT allele sequences first
-            REF = fasta_open.fetch(CHR, POS - 1, END).upper()
-            ALT = REF[0]
-
-
-        elif SVTYPE == "DUP":
-
-            # Insert duplicated sequence before POS
-            ALT = fasta_open.fetch(CHR, POS - 1, END).upper()
-            REF = ALT[0]
-
-
-        elif SVTYPE == "INV":
-
-            REF = fasta_open.fetch(CHR, POS - 1, END).upper()
-            ALT = REF[0] + str(Seq(REF[1:]).reverse_complement())
-
-        
-        if len(REF) > SV_cutoff or len(ALT) > SV_cutoff:
-            raise ValueError(f'Variant larger than {SV_cutoff} bp cutoff.')
-            
-        else:
-            scores_results = get_scores(CHR, POS, REF, ALT, scores, shift)
-     
-    
-        
-    elif SVTYPE == "BND":
-
-        REF_seq_L, REF_seq_R, ALT_seq = get_sequences_BND(CHR, POS, ALT, shift)
-
-
-        REF_pred_L, REF_pred_R, ALT_pred = [mat_from_vector(vector) for vector in \
-                                            [vector_from_seq(seq) for seq in [REF_seq_L, REF_seq_R, ALT_seq]]]
-
-        # Get disruption score and correlation for this variant
-        scores_results = get_scores_BND(REF_pred_L, REF_pred_R, ALT_pred, scores, shift)
-
-    
-    else:
-        raise ValueError('SV type not supported.')
-
-    
     return scores_results
 
 
