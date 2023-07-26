@@ -1,0 +1,12 @@
+__pycache__
+scoring_pipeline_scratch.ipynb
+scoring.py
+test/output/run_test_simple_sequences.fa
+test/output/run_test_simple_sequences.fa.fai
+get_seq_walkthrough.ipynb
+get_scores_walkthrough.ipynb
+OLD_utils.py
+test/sequences/
+test/output/CTCF_del_maps.npy
+test/output/CTCF_del_tracks.npy
+testing_packages.py
