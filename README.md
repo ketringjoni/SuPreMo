@@ -1,4 +1,4 @@
-Pipeline for scoring variants for disruption to genome folding using Akita (Fudenberg et. al. 2020).
+Pipeline for generating mutated sequences for input into predictive models and its application using Akita to measure disruption to genome folding (Fudenberg et. al. 2020).
   
 Install Akita and its dependencies:  
 https://github.com/calico/basenji/tree/master/manuscripts/akita  
@@ -14,7 +14,4 @@ Packages needed:
 	- Math  
 	- Collection  
 	- Bioseq  
-
-Test run on a vcf of structural variants:  
-> python score_var.py --in test/input/subset.somaticSV.vcf --shift_by -1 0 1 --file subset_SV --dir test/output
 
