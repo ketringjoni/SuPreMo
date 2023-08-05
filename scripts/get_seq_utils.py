@@ -231,7 +231,7 @@ def get_sequences(CHR, POS, REF, ALT, shift, revcomp: bool):
         REF_start = POS - REF_half_left
         REF_stop = REF_start + seq_length 
     elif var_position == "centromere":
-        raise ValueError('Centromeric variant')
+        raise ValueError('Centromeric variant.')
     else:
         REF_start = adjust_seq_ends(centro_start, centro_stop, chrom_max, var_position, 0, shift)
         REF_stop = adjust_seq_ends(centro_start, centro_stop, chrom_max, var_position, seq_length, shift)
@@ -244,7 +244,7 @@ def get_sequences(CHR, POS, REF, ALT, shift, revcomp: bool):
 
     # Error if N composition is more than 5% of sequence
     if Counter(REF_seq)['N']/seq_length*100 > 5:
-        raise ValueError('N composition greater than 5%')
+        raise ValueError('N composition greater than 5%.')
 
 
 
@@ -891,7 +891,7 @@ def get_sequences_BND(CHR, POS, REF, ALT, shift, revcomp):
     var_position = get_variant_position(CHR, POS, 0, half_patch_size - shift, half_patch_size + shift)
     
     if var_position == 'centromere':
-        raise ValueError('Centromeric variant')
+        raise ValueError('Centromeric variant.')
 
     if '[' in ALT:
         
@@ -901,7 +901,7 @@ def get_sequences_BND(CHR, POS, REF, ALT, shift, revcomp):
         var_position2 = get_variant_position(CHR2, POS2, 0, half_patch_size - shift, half_patch_size + shift)
         
         if var_position2 == 'centromere':
-            raise ValueError('Centromeric variant')
+            raise ValueError('Centromeric variant.')
 
         if ALT[0] in nt:
 
@@ -934,7 +934,7 @@ def get_sequences_BND(CHR, POS, REF, ALT, shift, revcomp):
         var_position2 = get_variant_position(CHR2, POS2, 0, half_patch_size - shift, half_patch_size + shift)
         
         if var_position2 == 'centromere':
-            raise ValueError('Centromeric variant')
+            raise ValueError('Centromeric variant.')
 
         if ALT[0] in nt:
 
@@ -967,7 +967,7 @@ def get_sequences_BND(CHR, POS, REF, ALT, shift, revcomp):
         elif ALT_t.endswith(REF):
             ALT_t = ALT_t[:-1]
         else:
-            raise ValueError('Unexpected format: BND ALT does not include REF')
+            raise ValueError('Unexpected format: BND ALT does not include REF.')
     
         # Create ALT sequence
         ALT_seq = ALT_left + ALT_t + ALT_right

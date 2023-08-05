@@ -4,7 +4,7 @@
 # Written in Python v 3.7.11
 
 '''
-usage: Akita_variant_scoring [-h] --in IN_FILE [--fa FASTA]
+usage: Akita_variant_scoring [-h] [--fa FASTA]
                              [--scores {mse,corr,ssi,scc,ins,di,dec,tri,pca} [{mse,corr,ssi,scc,ins,di,dec,tri,pca} ...]]
                              [--shift_by SHIFT_WINDOW [SHIFT_WINDOW ...]]
                              [--file OUT_FILE] [--dir OUT_DIR]
@@ -12,19 +12,20 @@ usage: Akita_variant_scoring [-h] --in IN_FILE [--fa FASTA]
                              [--revcomp {no_revcomp,add_revcomp,only_revcomp}]
                              [--augment] [--get_seq] [--get_tracks]
                              [--get_maps] [--get_scores] [--nrows NROWS]
+                             Input file
 
 Pipeline for generating mutated sequences for input into predictive models and for scoring variants for disruption to genome folding.
 
-optional arguments:
-  -h, --help            show this help message and exit
-  --in IN_FILE          
-                        Input file with variants. Accepted formats are:  
+positional arguments:
+  Input file             Input file with variants. Accepted formats are:  
                             VCF file,
                             TSV file (SVannot output), 
                             BED file,
-                            tab-delimited text file.
-                        Can be gzipped. Coordinates should be 1-based and left open (,], except for SNPs (follow vcf 4.1/4.2 specifications). See custom_perturbations.ipynb for BED or TXT file input specifications.
-                         (default: None)
+                            TXT file.
+                         Can be gzipped. Coordinates should be 1-based and left open (,], except for SNPs (follow vcf 4.1/4.2 specifications). See custom_perturbations.ipynb for BED or TXT file input specifications.
+
+optional arguments:
+  -h, --help            show this help message and exit
   --fa FASTA            Optional path to hg38 reference genome fasta file. If not provided and not existing in data/, it will be downloaded.
                          (default: data/hg38.fa)
   --scores {mse,corr,ssi,scc,ins,di,dec,tri,pca} [{mse,corr,ssi,scc,ins,di,dec,tri,pca} ...]
@@ -80,7 +81,7 @@ optional arguments:
                         To read fasta file: pysam.Fastafile(filename).fetch(seqname, start, end).upper(). 
                         To get sequence names in fasta file: pysam.Fastafile(filename).references.
                          (default: False)
-  --get_tracks          Save disruption score tracks (448 bins) in npy file format. Only possible for mse and corr scores. --get_scores must be specified.
+  --get_tracks          Save disruption score tracks (448 bins) in npy file format. Only possible for mse and corr scores.
                                             
                         Dictionary item name format: {var_index}_{track}_{shift}_{revcomp_annot}
                             var_index: input row number, followed by _0, _1, etc for each allele of variants with multiple alternate alleles; 
@@ -92,14 +93,14 @@ optional arguments:
                                             
                         To read into a dictionary in python: np.load(filename, allow_pickle="TRUE").item()
                          (default: False)
-  --get_maps            Save predicted contact frequency maps in npy file format. --get_scores must be specified.
+  --get_maps            Save predicted contact frequency maps in npy file format.
                                             
                         Dictionary item name format: {var_index}_{shift}_{revcomp_annot}
                             var_index: input row number, followed by _0, _1, etc for each allele of variants with multiple alternate alleles; 
                             shift: integer that window is shifted by; 
                             revcomp_annot: present only if reverse complement of sequence was taken. 
                                             
-                        There is 1 entry per prediction. Each entry has 2-3 448x448 arrays (2 for non-BND variants and 3 for BND variants). 
+                        There is 1 entry per prediction. Each entry has 2-3 448x448 arrays (2 for non-BND variants and 3 for BND variants), the relative variant position in the map, and the first coordinate of the sequence that the map corresponds to. 
                         
                         To read into a dictionary in python: np.load(filename, allow_pickle="TRUE").item()
                          (default: False)
@@ -125,18 +126,16 @@ parser = argparse.ArgumentParser(
                     formatter_class = CustomFormatter,
                     description='''Pipeline for generating mutated sequences for input into predictive models and for scoring variants for disruption to genome folding.''')
 
-parser.add_argument('--in',
-                    dest = 'in_file',
-                    help = '''
-Input file with variants. Accepted formats are:  
+parser.add_argument('in_file',
+                    metavar = 'Input file',
+                    help = ''' Input file with variants. Accepted formats are:  
     VCF file,
     TSV file (SVannot output), 
     BED file,
-    tab-delimited text file.
-Can be gzipped. Coordinates should be 1-based and left open (,], except for SNPs (follow vcf 4.1/4.2 specifications). See custom_perturbations.ipynb for BED or TXT file input specifications.
+    TXT file.
+ Can be gzipped. Coordinates should be 1-based and left open (,], except for SNPs (follow vcf 4.1/4.2 specifications). See custom_perturbations.ipynb for BED or TXT file input specifications.
 ''', 
-                    type = str,
-                    required = True)
+                    type = str)
 
 parser.add_argument('--fa',
                     dest = 'fasta', 
@@ -188,12 +187,6 @@ parser.add_argument('--dir',
                     type = str,
                     default = 'score_var_output',
                     required = False)
-
-def max_svlen_limit(x):
-    x = int(x)
-    if x > 700000:
-        raise argparse.ArgumentTypeError("Maximum SV length limit is 700000.")
-    return x
 
 parser.add_argument('--limit',
                     dest = 'svlen_limit', 
@@ -259,7 +252,7 @@ To get sequence names in fasta file: pysam.Fastafile(filename).references.
 
 parser.add_argument('--get_tracks',
                     dest = 'get_tracks', 
-                    help = '''Save disruption score tracks (448 bins) in npy file format. Only possible for mse and corr scores. --get_scores must be specified.
+                    help = '''Save disruption score tracks (448 bins) in npy file format. Only possible for mse and corr scores.
                     
 Dictionary item name format: {var_index}_{track}_{shift}_{revcomp_annot}
     var_index: input row number, followed by _0, _1, etc for each allele of variants with multiple alternate alleles; 
@@ -276,14 +269,14 @@ To read into a dictionary in python: np.load(filename, allow_pickle="TRUE").item
 
 parser.add_argument('--get_maps',
                     dest = 'get_maps', 
-                    help = '''Save predicted contact frequency maps in npy file format. --get_scores must be specified.
+                    help = '''Save predicted contact frequency maps in npy file format.
                     
 Dictionary item name format: {var_index}_{shift}_{revcomp_annot}
     var_index: input row number, followed by _0, _1, etc for each allele of variants with multiple alternate alleles; 
     shift: integer that window is shifted by; 
     revcomp_annot: present only if reverse complement of sequence was taken. 
                     
-There is 1 entry per prediction. Each entry has 2-3 448x448 arrays (2 for non-BND variants and 3 for BND variants). 
+There is 1 entry per prediction. Each entry has 2-3 448x448 arrays (2 for non-BND variants and 3 for BND variants), the relative variant position in the map, and the first coordinate of the sequence that the map corresponds to. 
 
 To read into a dictionary in python: np.load(filename, allow_pickle="TRUE").item()
 ''',
@@ -326,6 +319,9 @@ get_scores = args.get_scores
 var_set_size = args.nrows
 
 
+
+import tracemalloc
+tracemalloc.start()
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Adjust inputs from arguments
 
@@ -337,6 +333,8 @@ if seq_len != 1048576:
 
 if svlen_limit is None:
     svlen_limit = 2/3*seq_len
+elif svlen_limit > 2/3*seq_len:
+    raise ValueError("Maximum SV length limit should not be >2/3 of sequence length.")
 
 if not get_seq and not get_scores:
     raise ValueError('Either get_seq and/or get_scores must be True.')
@@ -431,6 +429,8 @@ fasta_open = pysam.Fastafile(fasta_path)
 # Assign necessary values to variables across module
 
 # Module 1: reading utilities
+import sys
+sys.path.insert(0, 'scripts/')
 import reading_utils
 reading_utils.var_set_size = var_set_size
 
@@ -453,9 +453,11 @@ if get_scores:
     get_scores_utils.centromere_coords = centromere_coords
 
     
+import time
+start_time = time.time()
+   
 
-    
-    
+first_size, first_peak = tracemalloc.get_traced_memory()
     
 import sys
 import numpy as np
@@ -471,6 +473,7 @@ sys.stdout = log_file
     
 var_set = 0
 var_set_list = []
+
 while True:
     
     # Read in variants
@@ -545,11 +548,13 @@ while True:
             
 
         if 'SVTYPE' in variants.columns:
-            END = int(variant.END)
+            END = variant.END
             SVTYPE = variant.SVTYPE
+            SVLEN = variant.SVLEN
         else:
             END = np.nan
             SVTYPE = np.nan
+            SVLEN = 0
 
         for shift in shift_by:
 
@@ -567,7 +572,7 @@ while True:
                         revcomp_annot = '_revcomp'
                     else:
                         revcomp_annot = ''
-                    
+
                     sequences_i = get_seq_utils.get_sequences_SV(CHR, POS, REF, ALT, END, SVTYPE, shift, revcomp)
 
 
@@ -581,8 +586,10 @@ while True:
 
                     if get_scores:
 
-                        scores = get_scores_utils.get_scores(CHR, POS, REF, ALT, sequences_i, SVTYPE, 
-                                                  scores_to_use, shift, revcomp, get_tracks, get_maps)
+                        scores = get_scores_utils.get_scores(POS, SVTYPE, SVLEN, 
+                                                             sequences_i, scores_to_use, 
+                                                             shift, revcomp, 
+                                                             get_tracks, get_maps)
 
                         if get_tracks:
                             for track in [x for x in scores.keys() if 'track' in x]:
@@ -684,6 +691,14 @@ sys.stdout = std_output
 log_file.close()
 
 
+end_time = time.time()
+
+print(end_time - start_time)
+
+second_size, second_peak = tracemalloc.get_traced_memory()
+
+
+
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Save results
     
@@ -707,15 +722,21 @@ if get_maps:
 
 
 # Combine subset files into one
-os.system(f'for file in {out_file}_scores_*; do cat "$file" >> {out_file}_scores && rm "$file"; done')
-os.system(f'for file in {out_file}_filtered_out_*; do cat "$file" >> {out_file}_filtered_out && rm "$file"; done')
+os.system(f'rm -f {out_file}_scores; \
+            for file in {out_file}_scores_*; \
+            do cat "$file" >> {out_file}_scores && rm "$file"; \
+            done')
+os.system(f'rm -f {out_file}_filtered_out; \
+            for file in {out_file}_filtered_out_*; \
+            do cat "$file" >> {out_file}_filtered_out && rm "$file"; \
+            done')
 
 
 
 # Adjust log file to only have 1 row per variant
 if os.path.exists(f'{out_file}_log'):
 
-    log_file = pd.read_csv(f'{out_file}_log', sep = '\n', names = ['output']) 
+    log_file = pd.read_csv(f'{out_file}_log', names = ['output']) 
     # Move warnings (printed 1 line before variant) to variant line
     indexes = np.array([[index, index+1] for (index, item) in enumerate(log_file.output) if item.startswith('Warning')])
     
@@ -726,5 +747,8 @@ if os.path.exists(f'{out_file}_log'):
         log_file.to_csv(f'{out_file}_log', sep = '\t', header = None, index = False)
 
 
-
+third_size, third_peak = tracemalloc.get_traced_memory()
+print(f"first_size={first_size}, first_peak={first_peak}")
+print(f"second_size={second_size}, second_peak={second_peak}")
+print(f"third_size={third_size}, third_peak={third_peak}")
 

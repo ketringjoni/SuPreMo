@@ -88,13 +88,15 @@ def read_input(in_file, var_set):
         if any(['SVTYPE' in x for x in variants.INFO]):
             
             if any(['END' in x and 'SVLEN' in x for x in variants.INFO]): # BNDs don't have 'END'
-                variants['END'] = variants.INFO.str.split(';END=').str[1].str.split(';').str[0] # this SVLEN (END-POS) would be 0 for SNPs
+                variants['END'] = variants.INFO.str.split('END=').str[1].str.split(';').str[0] # this SVLEN (END-POS) would be 0 for SNPs
+                variants['CIEND'] = variants.INFO.str.split('CIEND=').str[1].str.split(';').str[0]
+                variants.loc[variants.END == variants.CIEND,'END'] = np.nan
                 variants.loc[~pd.isnull(variants.END), 'END'] = variants.loc[~pd.isnull(variants.END), 'END'].astype('int')
-                variants['SVLEN'] = variants.INFO.str.split(';SVLEN=').str[1].str.split(';').str[0]
+                variants['SVLEN'] = variants.INFO.str.split('SVLEN=').str[1].str.split(';').str[0]
             else:
                 variants['END'] = [np.nan]*len(variants)
                 variants['SVLEN'] = [np.nan]*len(variants)
-            variants['SVTYPE'] = variants.INFO.str.split(';SVTYPE=').str[1].str.split(';').str[0]
+            variants['SVTYPE'] = variants.INFO.str.split('SVTYPE=').str[1].str.split(';').str[0]
             
             variants = variants[['CHROM', 'POS', 'END', 'REF', 'ALT', 'SVTYPE', 'SVLEN']]
 
@@ -129,7 +131,7 @@ def read_input(in_file, var_set):
             variants.loc[~pd.isnull(variants.END), 'END'] = variants.loc[~pd.isnull(variants.END), 'END'].astype('int')
 
             
-    elif '.' not in in_file:
+    elif 'txt' in in_file:
         
         colnames = pd.read_csv(in_file, sep = '\t', nrows = 0).columns
         cols_to_use = ['CHROM', 'POS', 'REF', 'ALT']
