@@ -51,8 +51,9 @@ Both get_seq and get_scores are implemented under the same python script score_v
 ```shell
 python scripts/score_var.py INPUT <args>
 ```
+
 **Required argument:**
-    * `INPUT`: Input file with variants. Accepted formats are: VCF, TSV (SVannot output format), BED, TXT. Can be gzipped. Coordinates should be 1-based and left open, except for SNPs (following vcf [4.1/4.2 specifications](https://samtools.github.io/hts-specs/VCFv4.1.pdf).
+* `INPUT`: Input file with variants. Accepted formats are: VCF, TSV (SVannot output format), BED, TXT. Can be gzipped. Coordinates should be 1-based and left open, except for SNPs (following vcf [4.1/4.2 specifications](https://samtools.github.io/hts-specs/VCFv4.1.pdf).
     
 **Optional arguments:**
 - Overall arguments

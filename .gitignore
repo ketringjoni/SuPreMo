@@ -3,10 +3,10 @@ data/hg38.fa
 data/hg38.fa.fai
 scoring_pipeline_scratch.ipynb
 scripts/scoring.py
+walkthroughs/.ipynb_checkpoints
+.ipynb_checkpoints
 test/output/run_test_simple_sequences.fa
 test/output/run_test_simple_sequences.fa.fai
-get_seq_walkthrough.ipynb
-get_scores_walkthrough.ipynb
 scripts/OLD_utils.py
 test/sequences/
 test/tumor_output/
