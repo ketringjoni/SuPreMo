@@ -3,7 +3,7 @@
 
 
 '''
-Functions for scoring variants that accompany get_scores.
+Functions that accompany SuPreMo get_scores for scoring variants for disruption to genome folding.
 
 '''
 
@@ -96,11 +96,11 @@ half_patch_size = round(seq_length/2)
 # # # # # # # # # # # # # # # # # # 
 # # Disruption scoring methods # # #
 
-if not Path('scripts/scoring.py').is_file():
+if not Path('./scripts/scoring.py').is_file():
     os.system('wget -P ./scripts/ https://raw.githubusercontent.com/pollardlab/contact_map_scoring/main/code/scoring.py')
 
 import sys
-sys.path.insert(0, 'scripts/')
+sys.path.insert(0, './scripts/')
 import scoring
 
 
@@ -299,6 +299,7 @@ def assemple_BND_maps(vector_repr_L, vector_repr_R, BND_rel_pos_map, matrix_len 
     
     '''
     
+    # Create empty matrix of NAs to place values in
     z = np.zeros((matrix_len,matrix_len))
 
     # make df out of matrix indices and filter to get top left and bottom right parts
@@ -307,9 +308,11 @@ def assemple_BND_maps(vector_repr_L, vector_repr_R, BND_rel_pos_map, matrix_len 
 
     indices_L = tuple(indices.query('cols < @BND_rel_pos_map').T.apply(np.array, axis=1))
     indices_R = tuple(indices.query('rows >= @BND_rel_pos_map').T.apply(np.array, axis=1))
+    indices_NA = tuple(indices.query('cols >= @BND_rel_pos_map & rows < @BND_rel_pos_map').T.apply(np.array, axis=1))
     
     z[indices_L] = vector_repr_L
     z[indices_R] = vector_repr_R
+    z[indices_NA] = np.nan
     
     for i in range(-num_diags+1,num_diags):
         set_diag(z, np.nan, i)
@@ -383,8 +386,12 @@ def mask_matrices(REF_pred, ALT_pred, SVTYPE, SVLEN, var_rel_pos):
         to_remove_left = var_start_REF - var_start_ALT
         to_remove_right = len(REF_pred_masked) - target_length_cropped - to_remove_left
 
-        REF_pred_masked = REF_pred_masked[to_remove_left : -to_remove_right, 
-                                          to_remove_left : -to_remove_right]
+        if to_remove_left != 0:
+            REF_pred_masked = REF_pred_masked[to_remove_left:, 
+                                              to_remove_left:]
+        if to_remove_right != 0:
+            REF_pred_masked = REF_pred_masked[:-to_remove_right, 
+                                              :-to_remove_right]
 
 
 
@@ -443,11 +450,8 @@ def get_masked_BND_maps(matrices, rel_pos_map):
 
     REF_L = get_left_BND_map(matrices[0], rel_pos_map)[indexes_left]
     REF_R = get_right_BND_map(matrices[1], rel_pos_map)[indexes_right]
-    ALT_L = get_left_BND_map(matrices[2], rel_pos_map)[indexes_left]
-    ALT_R = get_right_BND_map(matrices[2], rel_pos_map)[indexes_right]
 
-    return (assemple_BND_maps(REF_L, REF_R, rel_pos_map),
-            assemple_BND_maps(ALT_L, ALT_R, rel_pos_map))
+    return (assemple_BND_maps(REF_L, REF_R, rel_pos_map),matrices[2])
     
         
         
@@ -460,7 +464,7 @@ def get_masked_BND_maps(matrices, rel_pos_map):
 # # # # # # get_scores # # # # # #
 
 
-def get_scores(POS, SVTYPE, SVLEN, sequences, scores, shift, revcomp, get_tracks, get_maps): 
+def get_scores(POS, SVTYPE, SVLEN, sequences, scores, shift, revcomp, get_tracks: bool, get_maps: bool): 
     
     '''
     Get disruption scores, disruption tracks, and/or predicted maps from variants and the sequences generated from them.

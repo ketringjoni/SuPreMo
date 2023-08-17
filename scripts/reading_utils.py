@@ -61,9 +61,10 @@ def read_vcf_gz(path):
 def read_input(in_file, var_set):
 
     '''
-    Read and reformat variant dataset. Accepted formats are .vcf .vcf.gz from 4.1 version, 
-    .bed file with the following columns: [CHROM, POS, REF, ALT, END, SVTYPE, SVLEN], 
-    and .tsv from ANNOVAR annotSV.
+    Read and reformat variant dataset. Accepted formats are:
+    - VCF files
+    - BED and TXT files with the following columns in this order: CHROM, POS, REF, ALT, END (SV only), SVTYPE (SV only), SVLEN (SV only)
+    - TSV files from ANNOVAR annotSV
     
     '''
     
@@ -116,11 +117,13 @@ def read_input(in_file, var_set):
                                skiprows = var_set*var_set_size, nrows = var_set_size)
         
         
+        
     elif 'tsv' in in_file:
         
+        colnames = ['SV_chrom', 'SV_start', 'SV_end', 'SV_length', 'SV_type', 'REF', 'ALT']
         with (gzip.open if in_file.endswith(".gz") else open)(in_file, "rt", encoding="utf-8") as variants:
-            variants = (pd.read_csv(in_file, sep = '\t', low_memory=False,
-                                   skiprows = var_set*var_set_size, nrows = var_set_size)
+            variants = (pd.read_csv(in_file, sep = '\t', names = colnames, low_memory=False,
+                                   skiprows = 1 + var_set*var_set_size, nrows = var_set_size)[colnames]
                         .rename(columns = {'SV_chrom':'CHROM', 
                                            'SV_start':'POS',
                                            'SV_end':'END', 
@@ -129,6 +132,7 @@ def read_input(in_file, var_set):
                        [['CHROM', 'POS', 'END', 'REF', 'ALT', 'SVTYPE', 'SVLEN']])
             variants['CHROM'] = ['chr' + str(x) for x in variants['CHROM']]
             variants.loc[~pd.isnull(variants.END), 'END'] = variants.loc[~pd.isnull(variants.END), 'END'].astype('int')
+
 
             
     elif 'txt' in in_file:

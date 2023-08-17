@@ -4,7 +4,7 @@
 
 
 '''
-Functions for generating sequences that accompany get_seq.
+Functions that accompany SuPreMo get_scores for scoring variants for generating mutated sequences.
 
 '''
 
@@ -189,6 +189,9 @@ def adjust_seq_ends(centro_start, centro_stop, chrom_max, position, adjust, shif
 
 
 
+
+
+
 def get_sequences(CHR, POS, REF, ALT, shift, revcomp: bool):
   
     '''
@@ -248,21 +251,11 @@ def get_sequences(CHR, POS, REF, ALT, shift, revcomp: bool):
 
 
 
+    # Variant position relative to the reference sequence outputed
+    var_rel_pos_REF = POS - REF_start - 1 
+    # subtract 1 to include POS in var_rel_pos_REF since POS is not actually included in the variant
+
     # Error if reference sequence does not match given REF
-
-    if var_position == "chrom_mid":
-        var_rel_pos_REF = REF_half_left - 1 # subtract 1 bc POS is not included in variant
-
-    elif var_position == "chrom_start": 
-        var_rel_pos_REF = POS - abs(shift) - 1
-
-    elif var_position == "chrom_centro_right": 
-        var_rel_pos_REF = POS - centro_stop - abs(shift) - 1
-
-    elif var_position in ["chrom_end", "chrom_centro_left"]: 
-        var_rel_pos_REF = -(REF_stop - POS) - 1
-
-
     if REF_seq[var_rel_pos_REF : var_rel_pos_REF + REF_len] != REF:
         raise ValueError('Reference allele does not match hg38.')
             
@@ -329,24 +322,15 @@ def get_sequences(CHR, POS, REF, ALT, shift, revcomp: bool):
         
         # Get alternate sequence
         ALT_seq = fasta_open.fetch(CHR, ALT_start, ALT_stop).upper()
-        
-        
-        
+            
+            
+            
+        # Variant position relative to the reference sequence outputed
+        var_rel_pos_ALT = POS - ALT_start - 1
+        # subtract 1 to include POS in var_rel_pos_REF since POS is not actually included in the variant
+
+
         # Error if alternate sequence does not match REF at POS
-
-        if var_position == "chrom_mid":
-            var_rel_pos_ALT = REF_half_left + to_add_left - 1
-
-        elif var_position == "chrom_start": 
-            var_rel_pos_ALT = POS - abs(shift) - 1
-            
-        elif var_position == "chrom_centro_right": 
-            var_rel_pos_ALT = POS - centro_stop - abs(shift) - 1
-            
-        elif var_position in ["chrom_end", "chrom_centro_left"]: 
-            var_rel_pos_ALT = -(REF_stop - POS) - 1
-                
-                
         if ALT_seq[var_rel_pos_ALT : var_rel_pos_ALT + REF_len] != REF:
             raise ValueError('Sequence for the alternate allele does not match hg38 at REF position.')
 
@@ -374,6 +358,8 @@ def get_sequences(CHR, POS, REF, ALT, shift, revcomp: bool):
 
 
 
+
+
 # # # # # # # # # # # # # # # # # # 
 # # # Generating BND sequences # # #
 
@@ -382,23 +368,22 @@ def get_sequences(CHR, POS, REF, ALT, shift, revcomp: bool):
 def adjust_seq_ends_BND(CHR, position, adjust, shift):
            
     '''
-    Get start (adjust = 1) or end (adjust = seq_length) of sequence for prediction based on variant position \
+    Get start (adjust = 0) or end (adjust = seq_length) of sequence for prediction based on variant position \
     with respect to chromosome arm ends (defined in get_variant_position function).
     Different from adjust_seq_ends because it does not require centro_start, centro_stop, and chrom_max as input.
+    1 is added to convert position to 1-based.
     
     '''
     
     if position == 'chrom_start':
-        seq_pos = adjust + abs(shift) # 1 is added so the position is never 0. coordinates are 1-based
-        # POS is the base before variant so 0 is the base before 1 so you don't need to add 1
+        seq_pos = adjust + abs(shift) + 1 
         
     elif position == 'chrom_centro_right':
         seq_pos = int(centromere_coords[centromere_coords.chrom == CHR]['end']) + adjust + abs(shift) + 1
-        # Add 1 to convert position to 1-based
 
     elif position == 'chrom_end':
         seq_pos = int(chrom_lengths[chrom_lengths.CHROM == CHR[3:]]['chrom_max']) - seq_length + adjust - abs(shift) + 1
-
+        
     elif position == 'chrom_centro_left':
         seq_pos = int(centromere_coords[centromere_coords.chrom == CHR]['start']) - seq_length + adjust - abs(shift) + 1
         
