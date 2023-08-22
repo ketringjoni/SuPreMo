@@ -454,13 +454,6 @@ if get_scores:
 import sys
 import numpy as np
 
-# Create log file to save standard output with error messages
-print(f'Log file being saved here: {out_file}_log')
-std_output = sys.stdout
-log_file = open(f'{out_file}_log','w')
-sys.stdout = log_file
-
-
 
     
 var_set = 0
@@ -472,6 +465,13 @@ while True:
     variants = reading_utils.read_input(in_file, var_set)
     if len(variants) == 0:
         break
+    
+    # Create log file to save standard output with error messages
+#     print(f'Log file being saved here: {out_file}_log')
+    std_output = sys.stdout
+    log_file = open(f'{out_file}_log_{var_set}','w')
+    sys.stdout = log_file
+        
         
     # Index input based on row number and create output with same indexes
     variants['var_index'] = list(range(var_set*var_set_size, var_set*var_set_size + len(variants)))
@@ -583,6 +583,7 @@ while True:
                                                              shift, revcomp, 
                                                              get_tracks, get_maps)
 
+                        
                         if get_tracks:
                             for track in [x for x in scores.keys() if 'track' in x]:
                                 variant_tracks[f'{var_index}_{track}_{shift}{revcomp_annot}'] = scores[track]
@@ -591,7 +592,7 @@ while True:
                         if get_maps:
                             variant_maps[f'{var_index}_{shift}{revcomp_annot}'] = scores['maps']
                             del scores['maps']
-
+                        
                         for score in scores:
                             variant_scores.loc[variant_scores.var_index == var_index, 
                                                f'{score}_{shift}{revcomp_annot}'] = scores[score]
@@ -624,7 +625,7 @@ while True:
         # Take average of augmented sequences
         if augment:
             for score in scores:
-                cols = [x for x in variant_scores.columns if score in x ]
+                cols = [x for x in variant_scores.columns if score in x]
                 variant_scores[f'{score}_mean'] = variant_scores[cols].mean(axis = 1)
                 variant_scores.drop(cols, axis = 1, inplace = True)
 
@@ -673,14 +674,10 @@ while True:
     var_set_list.append(var_set)
     var_set += 1
     
-    
-    
 
-
-
-# Write standard output with error messages and warnings to log file
-sys.stdout = std_output
-log_file.close()
+    # Write standard output with error messages and warnings to log file
+    sys.stdout = std_output
+    log_file.close()
 
 
 
@@ -708,14 +705,19 @@ if get_maps:
 
 
 # Combine subset files into one
-os.system(f'rm -f {out_file}_scores; \
-            for file in {out_file}_scores_*; \
-            do cat "$file" >> {out_file}_scores && rm "$file"; \
-            done')
 os.system(f'rm -f {out_file}_filtered_out; \
             for file in {out_file}_filtered_out_*; \
             do cat "$file" >> {out_file}_filtered_out && rm "$file"; \
             done')
+os.system(f'rm -f {out_file}_log; \
+            for file in {out_file}_log_*; \
+            do cat "$file" >> {out_file}_log && rm "$file"; \
+            done')
+if get_scores:
+    os.system(f'rm -f {out_file}_scores; \
+                for file in {out_file}_scores_*; \
+                do cat "$file" >> {out_file}_scores && rm "$file"; \
+                done')
 
 
 

@@ -96,8 +96,9 @@ half_patch_size = round(seq_length/2)
 # # # # # # # # # # # # # # # # # # 
 # # Disruption scoring methods # # #
 
-if not Path('./scripts/scoring.py').is_file():
+if not Path('scripts/scoring.py').is_file():
     os.system('wget -P ./scripts/ https://raw.githubusercontent.com/pollardlab/contact_map_scoring/main/code/scoring.py')
+    os.system('wget -P ./scripts/ https://raw.githubusercontent.com/pollardlab/contact_map_scoring/main/code/hicrep.py')
 
 import sys
 sys.path.insert(0, './scripts/')
@@ -189,10 +190,11 @@ class scoring_map_methods:
         spearman_list = []
         for i in range(0,len(self.map_a)):
 
-            non_nan_values = np.count_nonzero(~np.isnan(self.map_b[i]))
+            non_nan_values = min(np.count_nonzero(~np.isnan(self.map_a[i])), 
+                                 np.count_nonzero(~np.isnan(self.map_b[i])))
 
             # if there are values in ith row, get mean of squared differences
-            if non_nan_values > 0:
+            if non_nan_values > 3: # Spearman requires at least 3 values
                 spearman_results = spearmanr(self.map_a[i], self.map_b[i], axis=0, nan_policy='omit')[0] # ignores nans
                 spearman_list.append(spearman_results)
             else:

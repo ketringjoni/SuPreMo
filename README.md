@@ -1,12 +1,20 @@
 # SuPreMo: Sequence Mutator for Predictive Models
 
-**S**equence M**u**tator for **Pre**dictive **Mo**dels (SuPreMo) is a pipeline for generating reference and mutated sequences from perturbations such as structural variants for input into predictive models and includes an application using the [Akita](https://www.nature.com/articles/s41592-020-0958-x) model to measure disruption to genome folding.
+<ins>S</ins>equence M<ins>u</ins>tator for <ins>Pre</ins>dictive <ins>Mo</ins>dels (SuPreMo) is a pipeline for generating reference and mutated sequences from perturbations such as structural variants for input into predictive models and includes an application using the [Akita](https://www.nature.com/articles/s41592-020-0958-x) model to measure disruption to genome folding.
 
 SuPreMo includes 2 modules. For both modules, the input is a set of perturbations. The possible parameters and outputs differ.
-1. **get_seq: Get sequences for predictive models**
-This module generates reference and alternate sequences for each perturbation under each provided augmentation parameter. The sequences are accompanied by the relative position of the perturbation for each sequence. The perturbation is by default centered in the sequence if possible unless the user provides a shifting parameter. These sequences can be inputed into predictive models and the results can be compared between the reference and alternate predictions to evaluate the effect of the perturbation on the predicted outcome.
-2. **get_scores: Get disruption scores using the Akita model**
-This module generated disruption scores by comparing predicted contact frequency maps from the reference and alternate sequences. Optional outputs are predicted maps or tracks of disruption scores along the map. The maps are accompanied by the relative position of the perturbation and the start coordinate that the predicted map corresponds to. The perturbation is by default centered in the map if possible unless the user provides a shifting parameter.
+
+    1. **get_seq: Get sequences for predictive models**
+    * This module generates reference and alternate sequences for each perturbation under each provided augmentation parameter. 
+    * The sequences are accompanied by the relative position of the perturbation for each sequence. 
+    * The perturbation is by default centered in the sequence if possible unless the user provides a shifting parameter. 
+    * These sequences can be inputed into predictive models and the results can be compared between the reference and alternate predictions to evaluate the effect of the perturbation on the predicted outcome.
+
+    2. **get_scores: Get disruption scores using the Akita model**
+    * This module generated disruption scores by comparing predicted contact frequency maps from the reference and alternate sequences. 
+    * Optional outputs are predicted maps or tracks of disruption scores along the map. 
+    * The maps are accompanied by the relative position of the perturbation and the start coordinate that the predicted map corresponds to. 
+    * The perturbation is by default centered in the map if possible unless the user provides a shifting parameter.
   
   
   
@@ -47,7 +55,7 @@ python scripts/SuPreMo.py INPUT <args>
 ```
 
 **Required arguments:**
-- `INPUT`: Input file with perturbations. Accepted formats are: VCF, TSV (SVannot output format), BED, TXT. Can be gzipped. Coordinates should be 1-based and left open, except for SNPs (following vcf [4.1/4.2 specifications](https://samtools.github.io/hts-specs/VCFv4.1.pdf).
+- `INPUT`: Input file with perturbations. Accepted formats are: VCF, TSV (SVannot output format), BED, TXT. Can be gzipped. Coordinates should be 1-based and left open, except for SNPs (following vcf [4.1/4.2 specifications](https://samtools.github.io/hts-specs/VCFv4.1.pdf)).
 - At least one of the following:
     * `--get_seq`: Get reference and mutated sequences. 
     * `--get_scores`: Get disruption scores using Akita.
@@ -65,11 +73,13 @@ python scripts/SuPreMo.py INPUT <args>
     * `--seq_len LENGTH`: Sequence length.
     * `--revcomp`: Take the reverse complement of the sequence. Options: no_revcomp,add_revcomp,only_revcomp
 - get_scores arguments
-    * `--scores SCORES`: Scores to be used from [Gunsalus and McArthur et al](https://www.biorxiv.org/content/10.1101/2023.04.04.535480v1.full.pdf). Options: mse, corr, ssi, scc, ins, di, dec, tri, pca.
+    * `--scores SCORES`: Scores to be used to calculate 3D genome folding disruption. Options: mse, corr, ssi, scc, ins, di, dec, tri, and pca, from [Gunsalus and McArthur et al](https://www.biorxiv.org/content/10.1101/2023.04.04.535480v1.full.pdf).
     * `--augment`: Get scores for augmented predictions (Average with predictions from 1bp shifts and reverse complement). 
     * `--get_tracks`: Get disruption score tracks.
     * `--get_maps`: Get predicted contact frequency maps.
     
+If multiple inputs are given for an argument, they should be space-separated.
+
 For more details on how to use arguments, refer to help page printed at the top of [SuPreMo.py](https://github.com/ketringjoni/Akita_variant_scoring/blob/main/scripts/SuPreMo.py).
 
 

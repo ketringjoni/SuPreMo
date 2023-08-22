@@ -4,7 +4,8 @@ data/hg38.fa.fai
 scoring_pipeline_scratch.ipynb
 scripts/scoring.py
 walkthroughs/.ipynb_checkpoints
-.ipynb_checkpoints
+.ipynb_checkpoints/
+**/*.ipynb_checkpoints/
 test_data/test_set_edge_cases/test_set_edge_simple_sequences.fa
 test_data/test_set_edge_cases/test_set_edge_simple_sequences.fa.fai
 scripts/OLD_utils.py
