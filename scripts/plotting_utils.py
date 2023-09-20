@@ -21,7 +21,7 @@ import itertools
 
 
 
-# Get Akita measurements (specified in get_scores_utils)
+# Get Akita measurements (specified in get_Akita_scores_utils)
 bin_size = 2048
 target_length_cropped = 448
 

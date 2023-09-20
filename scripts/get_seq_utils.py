@@ -4,7 +4,7 @@
 
 
 '''
-Functions that accompany SuPreMo get_scores for scoring variants for generating mutated sequences.
+Functions that accompany SuPreMo get_seq for scoring variants for generating mutated sequences.
 
 '''
 

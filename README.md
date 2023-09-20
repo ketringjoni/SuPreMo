@@ -10,11 +10,11 @@ SuPreMo consists of 2 modules. For both modules, the input is a set of perturbat
     * The perturbation is by default centered in the sequence, if possible, unless the user provides a shifting parameter. 
     * These sequences can be inputed into predictive models and the results can be compared between the reference and alternate predictions to evaluate the effect of the perturbation on the predicted outcome.
 
-2. **get_scores: Get disruption scores using the Akita model**
+2. **get_Akita_scores: Get disruption scores using the Akita model**
     * This module generated disruption scores by comparing contact frequency maps predicted from the reference and alternate sequences.
     * The maps are accompanied by the relative position of the perturbation and the start coordinate that the predicted maps correspond to. 
     * The perturbation is by default centered in the map, if possible, unless the user provides a shifting parameter.
-    * get_scores can also optionally output the predicted maps or disruption score tracks along those maps. 
+    * get_Akita_scores can also optionally output the predicted maps or disruption score tracks along those maps. 
   
   
   
@@ -22,7 +22,7 @@ SuPreMo consists of 2 modules. For both modules, the input is a set of perturbat
 
 For get_seq only, create a conda environment with the requirements outlined below or using [get_seq_env.yml](https://github.com/ketringjoni/Akita_variant_scoring/blob/main/get_seq_env.yml).
 
-For get_scores, you'll need to install Akita, Basenji and their dependencies. Create a conda environment following the recommandation [here](https://github.com/calico/basenji/tree/master/manuscripts/akita). Compatible package versions shown in [get_scores_env.yml](https://github.com/ketringjoni/Akita_variant_scoring/blob/main/get_scores_env.yml).
+For get_Akita_scores, you'll need to install Akita, Basenji and their dependencies. Create a conda environment following the recommandation [here](https://github.com/calico/basenji/tree/master/manuscripts/akita). Compatible package versions shown in [get_Akita_scores_env.yml](https://github.com/ketringjoni/Akita_variant_scoring/blob/main/get_Akita_scores_env.yml).
  
 **Requirements:**
 - Overall
@@ -32,7 +32,7 @@ For get_scores, you'll need to install Akita, Basenji and their dependencies. Cr
     * Numpy
     * Pathlib
     * Biopython
-- Only for get_scores
+- Only for get_Akita_scores
     * Akita, Basenji, and their dependencies
 - Only for walkthroughs
     * Jupyter
@@ -48,7 +48,7 @@ git clone https://github.com/ketringjoni/Akita_variant_scoring.git
 
 ## Use
 
-Both get_seq and get_scores are implemented under the same python script SuPreMo.py, used as follows:
+Both get_seq and get_Akita_scores are implemented under the same python script SuPreMo.py, used as follows:
 
 ```shell
 python scripts/SuPreMo.py INPUT <args>
@@ -58,7 +58,7 @@ python scripts/SuPreMo.py INPUT <args>
 - `INPUT`: Input file with perturbations. Accepted formats are: VCF, BED, TXT, and TSV (SVannot output format). Can be gzipped. Coordinates should be 1-based and left-open ([explained here](https://genome-blog.gi.ucsc.edu/blog/2016/12/12/the-ucsc-genome-browser-coordinate-counting-systems/)), except for SNPs which are fully closed (following vcf [4.1/4.2 specifications](https://samtools.github.io/hts-specs/VCFv4.1.pdf)).
 - At least one of the following:
     * `--get_seq`: Get reference and mutated sequences. 
-    * `--get_scores`: Get disruption scores using Akita.
+    * `--get_Akita_scores`: Get disruption scores using Akita.
     
 **Optional arguments:**
 - Overall arguments
@@ -72,9 +72,9 @@ python scripts/SuPreMo.py INPUT <args>
     * `--seq_len LENGTH`: Sequence length. Default: 1048576.
     * `--shift_by SHIFT`: Values to shift sequence window by.
     * `--revcomp`: Take the reverse complement of the sequence. Options: no_revcomp,add_revcomp,only_revcomp
-- get_scores arguments
+- get_Akita_scores arguments
     * `--scores SCORES`: Scores to be used to calculate 3D genome folding disruption. Options: mse, corr, ssi, scc, ins, di, dec, tri, and pca, from [Gunsalus and McArthur et al](https://www.biorxiv.org/content/10.1101/2023.04.04.535480v1.full.pdf).
-    * `--augment`: Get scores for augmented predictions (average of predictions with 1bp shifts and reverse complement). 
+    * `--augment`: Get scores for augmented predictions (mean and median scores from predictions with shifts and reverse complement). 
     * `--get_maps`: Get predicted contact frequency maps.
     * `--get_tracks`: Get disruption score tracks.
     
@@ -92,7 +92,7 @@ For more details on how to use arguments, refer to help page printed at the top 
     * [custom_perturbations.ipynb](https://github.com/ketringjoni/Akita_variant_scoring/blob/main/walkthroughs/custom_perturbations.ipynb)
 - Walkthrough for running SuPreMo, reading outputs and interpreting results
     * [get_seq_walkthrough.ipynb](https://github.com/ketringjoni/Akita_variant_scoring/blob/main/walkthroughs/get_seq_walkthrough.ipynb)
-    * [get_scores_walkthrough.ipynb](https://github.com/ketringjoni/Akita_variant_scoring/blob/main/walkthroughs/get_scores_walkthrough.ipynb)
+    * [get_Akita_scores_walkthrough.ipynb](https://github.com/ketringjoni/Akita_variant_scoring/blob/main/walkthroughs/get_Akita_scores_walkthrough.ipynb)
 
 
 
@@ -118,14 +118,14 @@ python scripts/SuPreMo.py test_data/test_set_edge_cases/test_set_edge_SV.bed \
                             --dir test_data/test_set_edge_cases \
                             --file test_set_edge_SV \
                             --shift_by -10000 0 10000 \
-                            --get_scores
+                            --get_Akita_scores
                             
 python scripts/SuPreMo.py test_data/test_set_edge_cases/test_set_edge_simple.bed \
                             --dir test_data/test_set_edge_cases \
                             --file test_set_edge_simple \
                             --shift_by -10000 0 10000 \
                             --revcomp add_revcomp \
-                            --get_scores
+                            --get_Akita_scores
 ```
 
 2. [Test set for sequences](https://github.com/ketringjoni/Akita_variant_scoring/blob/main/test/test_set_sequences/)

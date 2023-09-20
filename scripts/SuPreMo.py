@@ -9,7 +9,7 @@ usage: SuPreMo [-h] [--fa FASTA]
                [--shift_by SHIFT_WINDOW [SHIFT_WINDOW ...]] [--file OUT_FILE]
                [--dir OUT_DIR] [--limit SVLEN_LIMIT] [--seq_len SEQ_LEN]
                [--revcomp {no_revcomp,add_revcomp,only_revcomp}] [--augment]
-               [--get_seq] [--get_tracks] [--get_maps] [--get_scores]
+               [--get_seq] [--get_tracks] [--get_maps] [--get_Akita_scores]
                [--nrows NROWS]
                Input file
 
@@ -48,7 +48,7 @@ optional arguments:
   --dir OUT_DIR         Output directory. (default: score_var_output)
   --limit SVLEN_LIMIT   Maximum length of variants to be scored. Filtering out variants that are too big can save time and memory. If not specified, will be set to 2/3 of seq_len.
                          (default: None)
-  --seq_len SEQ_LEN     Length for sequences to generate. Default value is based on Akita requirement. If non-default value is set, get_scores must be false.
+  --seq_len SEQ_LEN     Length for sequences to generate. Default value is based on Akita requirement. If non-default value is set, get_Akita_scores must be false.
                          (default: 1048576)
   --revcomp {no_revcomp,add_revcomp,only_revcomp}
                         
@@ -59,14 +59,14 @@ optional arguments:
                         
                          (default: ['no_revcomp'])
   --augment             
-                        Only applicable if --get_scores is specified. Get the average score from four sequences: 
+                        Only applicable if --get_Akita_scores is specified. Get the average score from four sequences: 
                             1) no augmentation: 0 shift and no reverse complement, 
                             2) +1bp shift and no reverse complement, 
                             3) -1bp shift and no reverse complement, 
                             4) 0 shift and take reverse complement. 
                             Overwrites --shift_by and --revcomp arguments.
                          (default: False)
-  --get_seq             Save sequences for the reference and alternate alleles in fa file format. If --get_seq is not specified, must specify --get_scores.
+  --get_seq             Save sequences for the reference and alternate alleles in fa file format. If --get_seq is not specified, must specify --get_Akita_scores.
                         
                         Sequence name format: {var_index}_{shift}_{revcomp_annot}_{seq_index}_{var_rel_pos}
                             var_index: input row number, followed by _0, _1, etc for each allele of variants with multiple alternate alleles; 
@@ -103,7 +103,7 @@ optional arguments:
                         
                         To read into a dictionary in python: np.load(filename, allow_pickle="TRUE").item()
                          (default: False)
-  --get_scores          Get disruption scores. If --get_scores is not specified, must specify --get_seq. Scores saved in a dataframe with the same number of rows as the input. For multiple alternate alleles, the scores are separated by a comma. To convert the scores from strings to integers, use float(x), after separating rows with multiple alternate alleles. Scores go up to 20 decimal points.
+  --get_Akita_scores          Get disruption scores. If --get_Akita_scores is not specified, must specify --get_seq. Scores saved in a dataframe with the same number of rows as the input. For multiple alternate alleles, the scores are separated by a comma. To convert the scores from strings to integers, use float(x), after separating rows with multiple alternate alleles. Scores go up to 20 decimal points.
                          (default: False)
   --nrows NROWS         Number of rows (perturbations) to read at a time from input. When dealing with large inputs, selecting a subset of rows to read at a time allows scores to be saved in increments and uses less memory. Files with scores and filtered out variants will be temporarily saved in output direcotry. The file names will have a suffix corresponding to the set of nrows (0-based), for example for an input with 2700 rows and with nrows = 1000, there will be 3 sets. At the end of the run, these files will be concatenated into a comprehensive file and the temporary files will be removed.
                                              (default: 1000)                      
@@ -195,7 +195,7 @@ parser.add_argument('--limit',
 
 parser.add_argument('--seq_len',
                     dest = 'seq_len', 
-                    help = '''Length for sequences to generate. Default value is based on Akita requirement. If non-default value is set, get_scores must be false.
+                    help = '''Length for sequences to generate. Default value is based on Akita requirement. If non-default value is set, get_Akita_scores must be false.
 ''', 
                     type = int,
                     default = 1048576,
@@ -209,6 +209,7 @@ Option to use the reverse complement of the sequence:
     no_revcomp: no, only use the standard sequence;
     add_revcomp: yes, use both the standard sequence and its reverse complement;
     only_revcomp: yes, only use the reverse complement of the sequence.
+The reverse complement of the sequence is only taken with 0 shift. 
 
 ''', 
                     type = str,
@@ -219,19 +220,18 @@ Option to use the reverse complement of the sequence:
 parser.add_argument('--augment',
                     dest = 'augment', 
                     help = '''
-Only applicable if --get_scores is specified. Get the average score from four sequences: 
+Only applicable if --get_Akita_scores is specified. Get the mean and median scores from sequences with specified shifts and reverse complement. If augment is used but shift and revcomp are not specified, the following four sequences will be used: 
     1) no augmentation: 0 shift and no reverse complement, 
     2) +1bp shift and no reverse complement, 
     3) -1bp shift and no reverse complement, 
     4) 0 shift and take reverse complement. 
-    Overwrites --shift_by and --revcomp arguments.
 ''', 
                     action='store_true',
                     required = False)
 
 parser.add_argument('--get_seq',
                     dest = 'get_seq', 
-                    help = '''Save sequences for the reference and alternate alleles in fa file format. If --get_seq is not specified, must specify --get_scores.
+                    help = '''Save sequences for the reference and alternate alleles in fa file format. If --get_seq is not specified, must specify --get_Akita_scores.
 
 Sequence name format: {var_index}_{shift}_{revcomp_annot}_{seq_index}_{var_rel_pos}
     var_index: input row number, followed by _0, _1, etc for each allele of variants with multiple alternate alleles; 
@@ -281,9 +281,9 @@ To read into a dictionary in python: np.load(filename, allow_pickle="TRUE").item
                     action='store_true', 
                     required = False)
 
-parser.add_argument('--get_scores',
-                    dest = 'get_scores', 
-                    help = '''Get disruption scores. If --get_scores is not specified, must specify --get_seq. Scores saved in a dataframe with the same number of rows as the input. For multiple alternate alleles, the scores are separated by a comma. To convert the scores from strings to integers, use float(x), after separating rows with multiple alternate alleles. Scores go up to 20 decimal points.
+parser.add_argument('--get_Akita_scores',
+                    dest = 'get_Akita_scores', 
+                    help = '''Get disruption scores. If --get_Akita_scores is not specified, must specify --get_seq. Scores saved in a dataframe with the same number of rows as the input. For multiple alternate alleles, the scores are separated by a comma. To convert the scores from strings to integers, use float(x), after separating rows with multiple alternate alleles. Scores go up to 20 decimal points.
 ''', 
                     action='store_true',
                     required = False)
@@ -313,7 +313,7 @@ augment = args.augment
 get_seq = args.get_seq
 get_tracks = args.get_tracks
 get_maps = args.get_maps
-get_scores = args.get_scores
+get_Akita_scores = args.get_Akita_scores
 var_set_size = args.nrows
 
 
@@ -326,15 +326,15 @@ var_set_size = args.nrows
 # Handle argument dependencies
 
 if seq_len != 1048576:
-    get_scores = False
+    get_Akita_scores = False
 
 if svlen_limit is None:
     svlen_limit = 2/3*seq_len
 elif svlen_limit > 2/3*seq_len:
     raise ValueError("Maximum SV length limit should not be >2/3 of sequence length.")
 
-if not get_seq and not get_scores:
-    raise ValueError('Either get_seq and/or get_scores must be True.')
+if not get_seq and not get_Akita_scores:
+    raise ValueError('Either get_seq and/or get_Akita_scores must be True.')
     
 
 # Adjust shift input: Remove shifts that are outside of allowed range
@@ -350,12 +350,9 @@ elif revcomp == 'add_revcomp':
 elif revcomp == 'only_revcomp':
     revcomp_decision = [True]
 
-    
-# Adjust input for taking the average score from augmented sequences
-if augment:
+if augment and shift_by == [0] and revcomp == 'no_revcomp':
     shift_by = [-1,0,1]
     revcomp_decision = [False, True]
-#     scores_to_use = [x for x in scores_to_use if x in ['mse', 'corr']]
 
 revcomp_decision_i = revcomp_decision
 
@@ -366,15 +363,15 @@ if get_seq:
     
 if get_maps:
     variant_maps = {}
-    if get_scores == False:
-        get_scores = True
-        print('Must get scores to get maps. --get_scores was not specified but will be applied.')
+    if get_Akita_scores == False:
+        get_Akita_scores = True
+        print('Must get scores to get maps. --get_Akita_scores was not specified but will be applied.')
     
 if get_tracks:
     variant_tracks = {}
-    if get_scores == False:
-        get_scores = True
-        print('Must get scores to get tracks. --get_scores was not specified but will be applied.')
+    if get_Akita_scores == False:
+        get_Akita_scores = True
+        print('Must get scores to get tracks. --get_Akita_scores was not specified but will be applied.')
 
 
     
@@ -443,11 +440,11 @@ get_seq_utils.seq_length = seq_len
 get_seq_utils.half_patch_size = round(seq_len/2)
 
 
-# Module 2: get_scores utilities
-if get_scores:
-    import get_scores_utils
-    get_scores_utils.chrom_lengths = chrom_lengths
-    get_scores_utils.centromere_coords = centromere_coords
+# Module 2: get_Akita_scores utilities
+if get_Akita_scores:
+    import get_Akita_scores_utils
+    get_Akita_scores_utils.chrom_lengths = chrom_lengths
+    get_Akita_scores_utils.centromere_coords = centromere_coords
 
     
     
@@ -550,11 +547,11 @@ while True:
 
         for shift in shift_by:
 
-            if augment: # if getting augmented score, take reverse complement only with 0 shift
-                if shift != 0 & True in revcomp_decision:
-                    revcomp_decision_i = [False]
-                else:
-                    revcomp_decision_i = revcomp_decision
+            # Take reverse complement only with 0 shift
+            if shift != 0 & True in revcomp_decision:
+                revcomp_decision_i = [False]
+            else:
+                revcomp_decision_i = revcomp_decision
 
             for revcomp in revcomp_decision_i:
 
@@ -576,12 +573,12 @@ while True:
                         for ii in range(len(sequences_i[:-1][:3])): 
                             sequences[f'{var_index}_{shift}{revcomp_annot}_{ii}_{var_rel_pos}'] = sequences_i[:-1][ii]
 
-                    if get_scores:
+                    if get_Akita_scores:
 
-                        scores = get_scores_utils.get_scores(POS, SVTYPE, SVLEN, 
-                                                             sequences_i, scores_to_use, 
-                                                             shift, revcomp, 
-                                                             get_tracks, get_maps)
+                        scores = get_Akita_scores_utils.get_scores(POS, SVTYPE, SVLEN, 
+                                                                   sequences_i, scores_to_use, 
+                                                                   shift, revcomp, 
+                                                                   get_tracks, get_maps)
 
                         
                         if get_tracks:
@@ -620,13 +617,14 @@ while True:
             sequences_all.update(sequences)
 
     # Write scores to data frame
-    if get_scores:
+    if get_Akita_scores:
 
         # Take average of augmented sequences
         if augment:
             for score in scores:
                 cols = [x for x in variant_scores.columns if score in x]
                 variant_scores[f'{score}_mean'] = variant_scores[cols].mean(axis = 1)
+                variant_scores[f'{score}_median'] = variant_scores[cols].median(axis = 1)
                 variant_scores.drop(cols, axis = 1, inplace = True)
 
         # Convert scores from float to string so you can merge scores for variants with multiple alleles
@@ -713,7 +711,7 @@ os.system(f'rm -f {out_file}_log; \
             for file in {out_file}_log_*; \
             do cat "$file" >> {out_file}_log && rm "$file"; \
             done')
-if get_scores:
+if get_Akita_scores:
     os.system(f'rm -f {out_file}_scores; \
                 for file in {out_file}_scores_*; \
                 do cat "$file" >> {out_file}_scores && rm "$file"; \

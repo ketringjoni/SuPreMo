@@ -69,7 +69,7 @@ def read_input(in_file, var_set):
     '''
     
     
-    if 'vcf' in in_file:
+    if '.vcf' in in_file:
         
         # For gzipped files
         if in_file.endswith('.gz'):
@@ -90,8 +90,10 @@ def read_input(in_file, var_set):
             
             if any(['END' in x and 'SVLEN' in x for x in variants.INFO]): # BNDs don't have 'END'
                 variants['END'] = variants.INFO.str.split('END=').str[1].str.split(';').str[0] # this SVLEN (END-POS) would be 0 for SNPs
-                variants['CIEND'] = variants.INFO.str.split('CIEND=').str[1].str.split(';').str[0]
-                variants.loc[variants.END == variants.CIEND,'END'] = np.nan
+                if any(['CIEND' in x for x in variants.INFO]):
+                    variants['CIEND'] = variants.INFO.str.split('CIEND=').str[1].str.split(';').str[0]
+                    variants.loc[variants.END == variants.CIEND,'END'] = np.nan
+
                 variants.loc[~pd.isnull(variants.END), 'END'] = variants.loc[~pd.isnull(variants.END), 'END'].astype('int')
                 variants['SVLEN'] = variants.INFO.str.split('SVLEN=').str[1].str.split(';').str[0]
             else:
@@ -108,8 +110,9 @@ def read_input(in_file, var_set):
             
  
         
-    elif 'bed' in in_file:
+    elif '.bed' in in_file:
         
+        # works with .bed.gz
         colnames = ['CHROM', 'POS', 'END', 'REF', 'ALT', 'SVTYPE', 'SVLEN']
         ncols = len(pd.read_csv(in_file, sep = '\t', nrows = 0, low_memory=False).columns)
 
@@ -118,25 +121,28 @@ def read_input(in_file, var_set):
         
         
         
-    elif 'tsv' in in_file:
+    elif '.tsv' in in_file:
         
-        colnames = ['SV_chrom', 'SV_start', 'SV_end', 'SV_length', 'SV_type', 'REF', 'ALT']
-        with (gzip.open if in_file.endswith(".gz") else open)(in_file, "rt", encoding="utf-8") as variants:
-            variants = (pd.read_csv(in_file, sep = '\t', names = colnames, low_memory=False,
-                                   skiprows = 1 + var_set*var_set_size, nrows = var_set_size)[colnames]
-                        .rename(columns = {'SV_chrom':'CHROM', 
-                                           'SV_start':'POS',
-                                           'SV_end':'END', 
-                                           'SV_type':'SVTYPE',
-                                           'SV_length':'SVLEN'})
-                       [['CHROM', 'POS', 'END', 'REF', 'ALT', 'SVTYPE', 'SVLEN']])
-            variants['CHROM'] = ['chr' + str(x) for x in variants['CHROM']]
-            variants.loc[~pd.isnull(variants.END), 'END'] = variants.loc[~pd.isnull(variants.END), 'END'].astype('int')
+        # Does not work with gzipped TSVs because AnnotSV does not output gzipped files
+        colnames = pd.read_csv(in_file, sep = '\t', nrows = 0).columns
+        cols_to_use = ['SV_chrom', 'SV_start', 'SV_end', 'SV_length', 'SV_type', 'REF', 'ALT']
+
+        variants = (pd.read_csv(in_file, sep = '\t', low_memory=False, names = colnames,
+                                skiprows = 1 + var_set*var_set_size, nrows = var_set_size)[cols_to_use]
+                    .rename(columns = {'SV_chrom':'CHROM', 
+                                       'SV_start':'POS',
+                                       'SV_end':'END', 
+                                       'SV_type':'SVTYPE',
+                                       'SV_length':'SVLEN'})
+                   [['CHROM', 'POS', 'END', 'REF', 'ALT', 'SVTYPE', 'SVLEN']])
+        variants['CHROM'] = ['chr' + str(x) for x in variants['CHROM']]
+        variants.loc[~pd.isnull(variants.END), 'END'] = variants.loc[~pd.isnull(variants.END), 'END'].astype('int')
 
 
             
-    elif 'txt' in in_file:
+    elif '.txt' in in_file:
         
+        # works with .txt.gz
         colnames = pd.read_csv(in_file, sep = '\t', nrows = 0).columns
         cols_to_use = ['CHROM', 'POS', 'REF', 'ALT']
 
