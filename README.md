@@ -1,27 +1,25 @@
-![alt text](https://github.com/ketringjoni/Akita_variant_scoring/blob/main/SuPreMo_logo.png?raw=true)
-
-# SuPreMo: Sequence Mutator for Predictive Models
+<img src="https://github.com/ketringjoni/Akita_variant_scoring/blob/main/SuPreMo_logo.png" alt="image" width="30%" height="auto">
 
 <ins>S</ins>equence M<ins>u</ins>tator for <ins>Pre</ins>dictive <ins>Mo</ins>dels (SuPreMo) is a pipeline for generating reference and perturbed sequences for input into predictive models that is scalable, flexible, and comprehensive. SuPreMo-Akita applies the tool to an existing sequence-to-profile model, [Akita](https://www.nature.com/articles/s41592-020-0958-x), and generates scores that measure disruption to genome folding. 
 
 **SuPreMo: Get sequences for predictive models**
-    * SuPreMo incorporates variants one at a time into the human reference genome and generates reference and alternate sequences for each perturbation under each provided augmentation parameter. 
-    * The sequences are accompanied by the relative position of the perturbation for each sequence. 
-    * The perturbation is by default centered in the sequence, if possible, unless the user provides a shifting parameter. 
+- SuPreMo incorporates variants one at a time into the human reference genome and generates reference and alternate sequences for each perturbation under each provided augmentation parameter. 
+- The sequences are accompanied by the relative position of the perturbation for each sequence. 
+- The perturbation is by default centered in the sequence, if possible, unless the user provides a shifting parameter. 
 
 **SuPreMo-Akita: Get 3D genome folding disruption scores using the Akita model**
-    * SuPreMo-Akita generates disruption scores by comparing contact frequency maps predicted from the reference and alternate sequences.
-    * The maps are accompanied by the relative position of the perturbation and the start coordinate that the predicted maps correspond to.
-    * The perturbation is by default centered in the map, if possible, unless the user provides a shifting parameter.
-    * Optionally, the predicted maps or disruption score tracks along those maps can also be outputted. 
+- SuPreMo-Akita generates disruption scores by comparing contact frequency maps predicted from the reference and alternate sequences.
+- The maps are accompanied by the relative position of the perturbation and the start coordinate that the predicted maps correspond to.
+- The perturbation is by default centered in the map, if possible, unless the user provides a shifting parameter.
+- Optionally, the predicted maps or disruption score tracks along those maps can also be outputted. 
   
   
   
 ## Installation
 
-For get_seq only, create a conda environment with the requirements outlined below or using [get_seq_env.yml](https://github.com/ketringjoni/Akita_variant_scoring/blob/main/get_seq_env.yml).
+For SuPreMo only (get_seq argument), create a conda environment with the requirements outlined below or using [get_seq_env.yml](https://github.com/ketringjoni/SuPreMo/blob/main/get_seq_env.yml).
 
-For get_Akita_scores, you'll need to install Akita, Basenji and their dependencies. Create a conda environment following the recommandation [here](https://github.com/calico/basenji/tree/master/manuscripts/akita). Compatible package versions shown in [get_Akita_scores_env.yml](https://github.com/ketringjoni/Akita_variant_scoring/blob/main/get_Akita_scores_env.yml).
+For SuPreMo-Akita (get_Akita_scores argument), you'll need to install Akita, Basenji and their dependencies. Create a conda environment following the recommandation [here](https://github.com/calico/basenji/tree/master/manuscripts/akita). Compatible package versions shown in [get_Akita_scores_env.yml](https://github.com/ketringjoni/SuPreMo/blob/main/get_Akita_scores_env.yml).
  
 **Requirements:**
 - Overall
@@ -37,10 +35,12 @@ For get_Akita_scores, you'll need to install Akita, Basenji and their dependenci
     * Jupyter
     * Matplotlib
     
+To test that all the necessary packages are properly installed, run [testing_packages.py](https://github.com/ketringjoni/SuPreMo/blob/main/scripts/testing_packages.py).
+    
     
 **Download SuPreMo by:**
 ```shell
-git clone https://github.com/ketringjoni/Akita_variant_scoring.git
+git clone https://github.com/ketringjoni/SuPreMo.git
 ```
 
 
@@ -50,21 +50,22 @@ git clone https://github.com/ketringjoni/Akita_variant_scoring.git
 ### Input format
 
 **Suggested input types**
-1. VCF file
+- VCF file
     * following [vcf 4.1/4.2 specifications](https://samtools.github.io/hts-specs/VCFv4.1.pdf)
-2. TXT file
+- TXT file
     * Columns required for simple variants: CHROM, POS, REF, ALT
     * Columns required for structural variants: CHROM, POS, REF, ALT, END, SVTYPE (SV type), SVLEN (SV length)
     
 **Additional input types**
-3. BED-like file
+- BED-like file
     * Columns required for simple variants (exclude column names): chrom, pos, end, ref, alt
     * Columns required for structural variants(exclude column names): chrom, pos, end, ref, alt, SV type, SV length
-4. TSV file
+- TSV file
     * following [AnnotSV output format](https://lbgi.fr/AnnotSV/Documentation/README.AnnotSV_latest.pdf)
     
 **Optional additional input only for SuPreMo-Akita**
-    * Sequences outputted from SuPreMo in fasta format.
+- Sequences outputted from SuPreMo in fasta format.
+
 
 
 ### Running SuPreMo
@@ -102,7 +103,7 @@ python scripts/SuPreMo.py INPUT <args>
 
 If multiple inputs are given for an argument, they should be space-separated.
 
-For more details on how to use arguments, refer to help page printed at the top of [SuPreMo.py](https://github.com/ketringjoni/Akita_variant_scoring/blob/main/scripts/SuPreMo.py).
+For more details on how to use arguments, refer to help page printed at the top of [SuPreMo.py](https://github.com/ketringjoni/SuPreMo/blob/main/scripts/SuPreMo.py).
 
 
 ### Output format
@@ -130,24 +131,24 @@ For more details on how to use arguments, refer to help page printed at the top 
     
     
 File name superscript descriptions:
-    1. Input row number. (For sequences, this is followed by _N for each allele of variants with multiple alternate alleles); 
-    2. Integer that window is shifted by; 
-    3. 'revcomp' present only if reverse complement of sequence was taken; 
-    4. Index for sequences generated for that variant (0-1 for non-BND reference and alternate sequences and 0-2 for BND left and right reference sequence and alternate sequence); 
-    5. Relative position of variant in sequence (list of two for non-BND variant positions in reference and alternate sequence and an integer for BND breakend position in reference and alternate sequences). 
-    6. Method used to calculate disruption score;
+1. Input row number. (For sequences, this is followed by _N for each allele of variants with multiple alternate alleles); 
+2. Integer that window is shifted by; 
+3. 'revcomp' present only if reverse complement of sequence was taken; 
+4. Index for sequences generated for that variant (0-1 for non-BND reference and alternate sequences and 0-2 for BND left and right reference sequence and alternate sequence); 
+5. Relative position of variant in sequence (list of two for non-BND variant positions in reference and alternate sequence and an integer for BND breakend position in reference and alternate sequences). 
+6. Method used to calculate disruption score;
 
 
 
 ## Tutorials
 
 - Example application on structural variants from WGS in HCC1395 tumor cells.
-    * [example_application.ipynb](https://github.com/ketringjoni/Akita_variant_scoring/blob/main/walkthroughs/example_application.ipynb)
+    * [example_application.ipynb](https://github.com/ketringjoni/SuPreMo/blob/main/walkthroughs/example_application.ipynb)
 - Creating input files with custom perturbations
-    * [custom_perturbations.ipynb](https://github.com/ketringjoni/Akita_variant_scoring/blob/main/walkthroughs/custom_perturbations.ipynb)
+    * [custom_perturbations.ipynb](https://github.com/ketringjoni/SuPreMo/blob/main/walkthroughs/custom_perturbations.ipynb)
 - Walkthrough for running SuPreMo, reading outputs and interpreting results
-    * [get_seq_walkthrough.ipynb](https://github.com/ketringjoni/Akita_variant_scoring/blob/main/walkthroughs/get_seq_walkthrough.ipynb)
-    * [get_Akita_scores_walkthrough.ipynb](https://github.com/ketringjoni/Akita_variant_scoring/blob/main/walkthroughs/get_Akita_scores_walkthrough.ipynb)
+    * [get_seq_walkthrough.ipynb](https://github.com/ketringjoni/SuPreMo/blob/main/walkthroughs/get_seq_walkthrough.ipynb)
+    * [get_Akita_scores_walkthrough.ipynb](https://github.com/ketringjoni/SuPreMo/blob/main/walkthroughs/get_Akita_scores_walkthrough.ipynb)
 
 
 
@@ -156,8 +157,8 @@ File name superscript descriptions:
 - Coordinates can be 0- or 1- based:
     * Input files: 1-based, left-open (same as 0-based, right-open)
     * Fasta file: 1-based (0-based once read into python)
-    * [Chromosome lengths](https://github.com/ketringjoni/Akita_variant_scoring/blob/main/data/chrom_lengths_hg38): 1-based, fully closed
-    * [Centromere coordinates](https://github.com/ketringjoni/Akita_variant_scoring/blob/main/data/centromere_coords_hg38): 0-based, right-open
+    * [Chromosome lengths](https://github.com/ketringjoni/SuPreMo/blob/main/data/chrom_lengths_hg38): 1-based, fully closed
+    * [Centromere coordinates](https://github.com/ketringjoni/SuPreMo/blob/main/data/centromere_coords_hg38): 0-based, right-open
     
 
 
@@ -165,8 +166,9 @@ File name superscript descriptions:
 
 We have generated two categories of test sets:
 
-1. [Test sets for edge cases](https://github.com/ketringjoni/Akita_variant_scoring/blob/main/test/test_set_edge_cases/)
-These are sets of variants that are meant to include all edge cases that SuPreMo should handle and to ensure that SuPreMo is working appropriately with only expected errors and warnings appearing. These were run using the following commands and the outputs are saved in [test/test_set_edge_cases/](https://github.com/ketringjoni/Akita_variant_scoring/blob/main/test/test_set_edge_cases/)
+1. [Test sets for edge cases](https://github.com/ketringjoni/SuPreMo/blob/main/test/test_set_edge_cases/)
+
+These are sets of variants that are meant to include all edge cases that SuPreMo should handle and to ensure that SuPreMo is working appropriately with only expected errors and warnings appearing. These were run using the following commands and the outputs are saved in [test/test_set_edge_cases/](https://github.com/ketringjoni/SuPreMo/blob/main/test/test_set_edge_cases/)
 
 ```shell
 python scripts/SuPreMo.py test_data/test_set_edge_cases/test_set_edge_SV.bed \
@@ -183,7 +185,8 @@ python scripts/SuPreMo.py test_data/test_set_edge_cases/test_set_edge_simple.bed
                             --get_Akita_scores
 ```
 
-2. [Test set for sequences](https://github.com/ketringjoni/Akita_variant_scoring/blob/main/test/test_set_sequences/)
+2. [Test set for sequences](https://github.com/ketringjoni/SuPreMo/blob/main/test/test_set_sequences/)
+
 This is a set of 10 variants for which sequences were generated manually to ensure that SuPreMo generates reference and mutated sequences accurately. The output sequences for this set from SuPreMo and from the manual curation are not included in this repo due to size, but were tested to be exactly the same.
 
   

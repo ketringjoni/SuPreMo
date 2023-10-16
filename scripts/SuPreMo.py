@@ -4,7 +4,8 @@
 # Written in Python v 3.7.11
 
 '''
-usage: SuPreMo [-h] [--fa FASTA] [--genome {hg19,hg38}]
+usage: SuPreMo [-h] [--sequences SEQUENCES] [--fa FASTA]
+               [--genome {hg19,hg38}]
                [--scores {mse,corr,ssi,scc,ins,di,dec,tri,pca} [{mse,corr,ssi,scc,ins,di,dec,tri,pca} ...]]
                [--shift_by SHIFT_WINDOW [SHIFT_WINDOW ...]] [--file OUT_FILE]
                [--dir OUT_DIR] [--limit SVLEN_LIMIT] [--seq_len SEQ_LEN]
@@ -25,9 +26,12 @@ positional arguments:
 
 optional arguments:
   -h, --help            show this help message and exit
+  --sequences SEQUENCES
+                         Input fasta file with sequences. This file is one outputted by SuPreMo.
+                         (default: None)
   --fa FASTA            Optional path to reference genome fasta file. If not provided and not existing in data/, it will be downloaded.
                          (default: None)
-  --genome {hg19,hg38}  Genome to be used: hg37 or hg38. (default: ['hg38'])
+  --genome {hg19,hg38}  Genome to be used: hg19 or hg38. (default: ['hg38'])
   --scores {mse,corr,ssi,scc,ins,di,dec,tri,pca} [{mse,corr,ssi,scc,ins,di,dec,tri,pca} ...]
                         
                         Method(s) used to calculate disruption scores. Use abbreviations as follows:
@@ -46,7 +50,7 @@ optional arguments:
                          (default: [0])
   --file OUT_FILE       Prefix for output files. Saved files will overwrite any existing files.
                          (default: SuPreMo)
-  --dir OUT_DIR         Output directory. (default: SuPreMo_output)
+  --dir OUT_DIR         Output directory. If directory already exists, files will be saved in existing directory. If the same files already exists in that directory, new files will overwrite them. (default: SuPreMo_output)
   --limit SVLEN_LIMIT   Maximum length of variants to be scored. Filtering out variants that are too big can save time and memory. If not specified, will be set to 2/3 of seq_len.
                          (default: None)
   --seq_len SEQ_LEN     Length for sequences to generate. Default value is based on Akita requirement. If non-default value is set, get_Akita_scores must be false.
@@ -100,14 +104,14 @@ optional arguments:
                             shift: integer that window is shifted by; 
                             revcomp_annot: present only if reverse complement of sequence was taken. 
                                             
-                        There is 1 entry per prediction. Each entry has 2-3 448x448 arrays (2 for non-BND variants and 3 for BND variants), the relative variant position in the map, and the first coordinate of the sequence that the map corresponds to. 
+                        There is 1 entry per prediction. Each entry contains the following: 2 (3 for chromosomal rearrangements) arrays that correspond to the upper right triangle of the predicted contact frequency maps, the relative variant position in the map, and the first coordinate of the sequence that the map corresponds to. 
                         
                         To read into a dictionary in python: np.load(filename, allow_pickle="TRUE").item()
                          (default: False)
   --get_Akita_scores    Get disruption scores. If --get_Akita_scores is not specified, must specify --get_seq. Scores saved in a dataframe with the same number of rows as the input. For multiple alternate alleles, the scores are separated by a comma. To convert the scores from strings to integers, use float(x), after separating rows with multiple alternate alleles. Scores go up to 20 decimal points.
                          (default: False)
   --nrows NROWS         Number of rows (perturbations) to read at a time from input. When dealing with large inputs, selecting a subset of rows to read at a time allows scores to be saved in increments and uses less memory. Files with scores and filtered out variants will be temporarily saved in output direcotry. The file names will have a suffix corresponding to the set of nrows (0-based), for example for an input with 2700 rows and with nrows = 1000, there will be 3 sets. At the end of the run, these files will be concatenated into a comprehensive file and the temporary files will be removed.
-                                             (default: 1000)                   
+                                             (default: 1000)              
 '''
 
 
