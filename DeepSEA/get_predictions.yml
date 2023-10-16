@@ -1,0 +1,32 @@
+---
+ops: [analyze]
+model: {
+    path: {path_to_main_directory}DeepSEA/deeperdeepsea.py, 
+    class: DeeperDeepSEA,
+    class_args: {
+        sequence_length: 1000,
+        n_targets: 919
+    },
+#     non_strand_specific: mean
+}
+analyze_sequences: !obj:selene_sdk.predict.AnalyzeSequences {
+    trained_model_path: {path_to_main_directory}DeepSEA/example_deeperdeepsea.pth.tar,
+    sequence_length: 1000,
+    features: !obj:selene_sdk.utils.load_features_list {
+        input_path: {path_to_main_directory}Akita_variant_scoring/DeepSEA/distinct_features.txt 
+    },
+    batch_size: 64,
+    use_cuda: False,
+    reference_sequence: !obj:selene_sdk.sequences.Genome {
+        input_path: {path_to_main_directory}data/hg38.fa,
+        blacklist_regions: hg38
+    },
+    write_mem_limit: 75000
+}
+prediction: {
+    input_path: {path_to_main_directory}test_data/custom_perturbations/output/CTCF_del_sequences.fa,
+    output_dir: {path_to_main_directory}DeepSEA/output,
+    output_format: tsv
+}
+random_seed: 123
+...

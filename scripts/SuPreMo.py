@@ -4,7 +4,7 @@
 # Written in Python v 3.7.11
 
 '''
-usage: SuPreMo [-h] [--fa FASTA]
+usage: SuPreMo [-h] [--fa FASTA] [--genome {hg19,hg38}]
                [--scores {mse,corr,ssi,scc,ins,di,dec,tri,pca} [{mse,corr,ssi,scc,ins,di,dec,tri,pca} ...]]
                [--shift_by SHIFT_WINDOW [SHIFT_WINDOW ...]] [--file OUT_FILE]
                [--dir OUT_DIR] [--limit SVLEN_LIMIT] [--seq_len SEQ_LEN]
@@ -25,8 +25,9 @@ positional arguments:
 
 optional arguments:
   -h, --help            show this help message and exit
-  --fa FASTA            Optional path to hg38 reference genome fasta file. If not provided and not existing in data/, it will be downloaded.
-                         (default: data/hg38.fa)
+  --fa FASTA            Optional path to reference genome fasta file. If not provided and not existing in data/, it will be downloaded.
+                         (default: None)
+  --genome {hg19,hg38}  Genome to be used: hg37 or hg38. (default: ['hg38'])
   --scores {mse,corr,ssi,scc,ins,di,dec,tri,pca} [{mse,corr,ssi,scc,ins,di,dec,tri,pca} ...]
                         
                         Method(s) used to calculate disruption scores. Use abbreviations as follows:
@@ -44,8 +45,8 @@ optional arguments:
                         Values for shifting prediciton windows inputted as space-separated integers (e.g. -1 0 1). Values outside of range -450000 ≤ x ≤ 450000 will be ignored. Prediction windows at the edge of chromosome arms will only be shifted in the direction that is possible (ex. for window at chrom start, a -1 shift will be treated as a 1 shift since it is not possible to shift left).
                          (default: [0])
   --file OUT_FILE       Prefix for output files. Saved files will overwrite any existing files.
-                         (default: score_var_results)
-  --dir OUT_DIR         Output directory. (default: score_var_output)
+                         (default: SuPreMo)
+  --dir OUT_DIR         Output directory. (default: SuPreMo_output)
   --limit SVLEN_LIMIT   Maximum length of variants to be scored. Filtering out variants that are too big can save time and memory. If not specified, will be set to 2/3 of seq_len.
                          (default: None)
   --seq_len SEQ_LEN     Length for sequences to generate. Default value is based on Akita requirement. If non-default value is set, get_Akita_scores must be false.
@@ -56,15 +57,15 @@ optional arguments:
                             no_revcomp: no, only use the standard sequence;
                             add_revcomp: yes, use both the standard sequence and its reverse complement;
                             only_revcomp: yes, only use the reverse complement of the sequence.
+                        The reverse complement of the sequence is only taken with 0 shift. 
                         
                          (default: ['no_revcomp'])
   --augment             
-                        Only applicable if --get_Akita_scores is specified. Get the average score from four sequences: 
+                        Only applicable if --get_Akita_scores is specified. Get the mean and median scores from sequences with specified shifts and reverse complement. If augment is used but shift and revcomp are not specified, the following four sequences will be used: 
                             1) no augmentation: 0 shift and no reverse complement, 
                             2) +1bp shift and no reverse complement, 
                             3) -1bp shift and no reverse complement, 
                             4) 0 shift and take reverse complement. 
-                            Overwrites --shift_by and --revcomp arguments.
                          (default: False)
   --get_seq             Save sequences for the reference and alternate alleles in fa file format. If --get_seq is not specified, must specify --get_Akita_scores.
                         
@@ -103,10 +104,10 @@ optional arguments:
                         
                         To read into a dictionary in python: np.load(filename, allow_pickle="TRUE").item()
                          (default: False)
-  --get_Akita_scores          Get disruption scores. If --get_Akita_scores is not specified, must specify --get_seq. Scores saved in a dataframe with the same number of rows as the input. For multiple alternate alleles, the scores are separated by a comma. To convert the scores from strings to integers, use float(x), after separating rows with multiple alternate alleles. Scores go up to 20 decimal points.
+  --get_Akita_scores    Get disruption scores. If --get_Akita_scores is not specified, must specify --get_seq. Scores saved in a dataframe with the same number of rows as the input. For multiple alternate alleles, the scores are separated by a comma. To convert the scores from strings to integers, use float(x), after separating rows with multiple alternate alleles. Scores go up to 20 decimal points.
                          (default: False)
   --nrows NROWS         Number of rows (perturbations) to read at a time from input. When dealing with large inputs, selecting a subset of rows to read at a time allows scores to be saved in increments and uses less memory. Files with scores and filtered out variants will be temporarily saved in output direcotry. The file names will have a suffix corresponding to the set of nrows (0-based), for example for an input with 2700 rows and with nrows = 1000, there will be 3 sets. At the end of the run, these files will be concatenated into a comprehensive file and the temporary files will be removed.
-                                             (default: 1000)                      
+                                             (default: 1000)                   
 '''
 
 
@@ -135,12 +136,27 @@ parser.add_argument('in_file',
 ''', 
                     type = str)
 
-parser.add_argument('--fa',
-                    dest = 'fasta', 
-                    help = '''Optional path to hg38 reference genome fasta file. If not provided and not existing in data/, it will be downloaded.
+parser.add_argument('--sequences',
+                    dest = 'sequences',
+                    help = ''' Input fasta file with sequences. This file is one outputted by SuPreMo.
 ''', 
                     type = str,
-                    default = 'data/hg38.fa',
+                    required = False)
+
+parser.add_argument('--fa',
+                    dest = 'fasta', 
+                    help = '''Optional path to reference genome fasta file. If not provided and not existing in data/, it will be downloaded.
+''', 
+                    type = str,
+                    required = False)
+
+parser.add_argument('--genome',
+                    dest = 'genome',
+                    nargs = 1, 
+                    help = '''Genome to be used: hg19 or hg38.''', 
+                    type = str,
+                    choices = ['hg19', 'hg38'],
+                    default = ['hg38'],
                     required = False)
 
 parser.add_argument('--scores',
@@ -177,13 +193,14 @@ parser.add_argument('--file',
                     help = '''Prefix for output files. Saved files will overwrite any existing files.
 ''', 
                     type = str,
-                    default = 'score_var_results',
+                    default = 'SuPreMo',
                     required = False)
+
 parser.add_argument('--dir',
                     dest = 'out_dir', 
-                    help = 'Output directory.', 
+                    help = 'Output directory. If directory already exists, files will be saved in existing directory. If the same files already exists in that directory, new files will overwrite them.', 
                     type = str,
-                    default = 'score_var_output',
+                    default = 'SuPreMo_output',
                     required = False)
 
 parser.add_argument('--limit',
@@ -274,7 +291,7 @@ Dictionary item name format: {var_index}_{shift}_{revcomp_annot}
     shift: integer that window is shifted by; 
     revcomp_annot: present only if reverse complement of sequence was taken. 
                     
-There is 1 entry per prediction. Each entry has 2-3 448x448 arrays (2 for non-BND variants and 3 for BND variants), the relative variant position in the map, and the first coordinate of the sequence that the map corresponds to. 
+There is 1 entry per prediction. Each entry contains the following: 2 (3 for chromosomal rearrangements) arrays that correspond to the upper right triangle of the predicted contact frequency maps, the relative variant position in the map, and the first coordinate of the sequence that the map corresponds to. 
 
 To read into a dictionary in python: np.load(filename, allow_pickle="TRUE").item()
 ''',
@@ -301,7 +318,9 @@ args = parser.parse_args()
 
 
 in_file = args.in_file
+input_sequences = args.sequences
 fasta_path = args.fasta
+genome = args.genome[0]
 scores_to_use = args.scores
 shift_by = args.shift_window
 out_file = args.out_file
@@ -317,13 +336,16 @@ get_Akita_scores = args.get_Akita_scores
 var_set_size = args.nrows
 
 
-
+__version__ = '1.0'
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Adjust inputs from arguments
 
 
 # Handle argument dependencies
+
+if fasta_path is None:
+    fasta_path = f'data/{genome}.fa'
 
 if seq_len != 1048576:
     get_Akita_scores = False
@@ -356,6 +378,11 @@ if augment and shift_by == [0] and revcomp == 'no_revcomp':
 
 revcomp_decision_i = revcomp_decision
 
+import pysam
+
+if input_sequences is not None:
+    seq_names = pysam.Fastafile(input_sequences).references
+
 
 # Create dictionaries to save sequences, maps, and disruption score tracks, if specified
 if get_seq:
@@ -385,20 +412,20 @@ if get_tracks:
 import os
 from pathlib import Path
 
-chrom_lengths_path = 'data/chrom_lengths_hg38'
+chrom_lengths_path = f'data/chrom_lengths_{genome}'
 if not Path(chrom_lengths_path).is_file():
-    os.system('wget -P ./data/ https://raw.githubusercontent.com/ketringjoni/Akita_variant_scoring/main/data/chrom_lengths_hg38')
-    print('Chromosome lengths file downloaded as data/chrom_lengths_hg38.')
+    os.system(f'wget -P ./data/ https://raw.githubusercontent.com/ketringjoni/Akita_variant_scoring/main/data/chrom_lengths_{genome}')
+    print(f'Chromosome lengths file downloaded as data/chrom_lengths_{genome}.')
 
-centromere_coords_path = 'data/centromere_coords_hg38'
+centromere_coords_path = f'data/centromere_coords_{genome}'
 if not Path(centromere_coords_path).is_file():
-    os.system('wget -P ./data/ https://raw.githubusercontent.com/ketringjoni/Akita_variant_scoring/main/data/centromere_coords_hg38')
-    print('Centromere coordinates file downloaded as data/centromere_coords_hg38.')
+    os.system(f'wget -P ./data/ https://raw.githubusercontent.com/ketringjoni/Akita_variant_scoring/main/data/centromere_coords_{genome}')
+    print(f'Centromere coordinates file downloaded as data/centromere_coords_{genome}.')
 
-if fasta_path == 'data/hg38.fa' and not Path(fasta_path).is_file():
-    os.system('wget -P ./data/ https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.fa.gz')
-    os.system('gunzip data/hg38.fa.gz')
-    print('Fasta file downloaded as data/hg38.fa.')
+if fasta_path == f'data/{genome}.fa' and not Path(fasta_path).is_file():
+    os.system(f'wget -P ./data/ https://hgdownload.soe.ucsc.edu/goldenPath/{genome}/bigZips/{genome}.fa.gz')
+    os.system(f'gunzip data/{genome}.fa.gz')
+    print(f'Fasta file downloaded as data/{genome}.fa.')
 
     
 if not os.path.exists(out_dir):
@@ -413,7 +440,6 @@ out_file = os.path.join(out_dir, out_file)
 # Read in (and adjust) data
 
 import pandas as pd
-import pysam
 
 chrom_lengths = pd.read_table(chrom_lengths_path, header = None, names = ['CHROM', 'chrom_max'])
 centromere_coords = pd.read_table(centromere_coords_path, sep = '\t')
@@ -451,7 +477,7 @@ if get_Akita_scores:
 import sys
 import numpy as np
 
-
+nt = ['A', 'T', 'C', 'G']
     
 var_set = 0
 var_set_list = []
@@ -462,12 +488,6 @@ while True:
     variants = reading_utils.read_input(in_file, var_set)
     if len(variants) == 0:
         break
-    
-    # Create log file to save standard output with error messages
-#     print(f'Log file being saved here: {out_file}_log')
-    std_output = sys.stdout
-    log_file = open(f'{out_file}_log_{var_set}','w')
-    sys.stdout = log_file
         
         
     # Index input based on row number and create output with same indexes
@@ -505,10 +525,17 @@ while True:
         too_long_var = pd.DataFrame({'var_index' : [y for x,y in zip(variants.SVLEN, variants.var_index) 
                                                     if not pd.isnull(x) and abs(int(x)) > svlen_limit],
                                      'reason' : f' SV longer than {svlen_limit}.'})
+        unsuitable_var = pd.DataFrame({'var_index' : [y for x,y,z in zip(variants.SVTYPE, variants.var_index, variants.ALT) 
+                                                      if not pd.isnull(x) and 
+                                                      x not in ["DEL", "DUP", "INV", "BND"] and 
+                                                      all([g not in nt for g in z])],
+                                       'reason' : ' SV type not compatible.'})
     else:
         too_long_var = pd.DataFrame()
+        unsuitable_var = pd.DataFrame()
 
     filtered_out = pd.concat([chrM_var, too_long_var], axis = 0)
+    filtered_out = pd.concat([filtered_out, unsuitable_var], axis = 0)
     filtered_out.var_index = filtered_out.var_index.astype('str')
 
     # Save filtered out variants into file
@@ -523,6 +550,12 @@ while True:
     # Run: Make Akita predictions and calculate disruption scores
 
 
+    # Create log file to save standard output with error messages
+    print(f'Log file being saved here: {out_file}_log')
+    std_output = sys.stdout
+    log_file = open(f'{out_file}_log_{var_set}','w')
+    sys.stdout = log_file
+    
 
     # Loop through each row (not index) and get disruption scores 
     for i in range(len(variants)):
@@ -562,8 +595,27 @@ while True:
                     else:
                         revcomp_annot = ''
 
-                    sequences_i = get_seq_utils.get_sequences_SV(CHR, POS, REF, ALT, END, SVTYPE, shift, revcomp)
+                    if input_sequences is not None:
 
+                        # Generate sequences_i from sequence input
+                        if revcomp_annot == '':
+                            sequence_names = [x for x in seq_names if x.startswith(f'{var_index}_{shift}') and 
+                                              'revcomp' not in x]
+                        elif revcomp_annot == '_revcomp':
+                            sequence_names = [x for x in seq_names if x.startswith(f'{var_index}_{shift}{revcomp_annot}')]
+
+                        sequences_i = []
+                        for sequence_name in sequence_names:
+                            sequences_i.append(pysam.Fastafile(input_sequences).fetch(sequence_name, 0, seq_len).upper())
+
+                        sequences_i.append([int(x) for x in sequence_name.split('[')[1].split(']')[0].split('_')])
+                        
+
+                    else:
+
+                        # Create sequences_i from variant input
+                        sequences_i = get_seq_utils.get_sequences_SV(CHR, POS, REF, ALT, END, SVTYPE, shift, revcomp)
+                        
 
                     if get_seq:
 
@@ -580,7 +632,7 @@ while True:
                                                                    shift, revcomp, 
                                                                    get_tracks, get_maps)
 
-                        
+
                         if get_tracks:
                             for track in [x for x in scores.keys() if 'track' in x]:
                                 variant_tracks[f'{var_index}_{track}_{shift}{revcomp_annot}'] = scores[track]
@@ -589,7 +641,7 @@ while True:
                         if get_maps:
                             variant_maps[f'{var_index}_{shift}{revcomp_annot}'] = scores['maps']
                             del scores['maps']
-                        
+
                         for score in scores:
                             variant_scores.loc[variant_scores.var_index == var_index, 
                                                f'{score}_{shift}{revcomp_annot}'] = scores[score]
@@ -605,6 +657,11 @@ while True:
  
     
       
+    # Write standard output with error messages and warnings to log file
+    sys.stdout = std_output
+    log_file.close()
+    
+    
     # Combine results from all sets
 
 
@@ -671,11 +728,7 @@ while True:
         
     var_set_list.append(var_set)
     var_set += 1
-    
 
-    # Write standard output with error messages and warnings to log file
-    sys.stdout = std_output
-    log_file.close()
 
 
 

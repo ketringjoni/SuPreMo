@@ -1,4 +1,4 @@
-name: get_scores_env
+name: get_Akita_scores_env
 channels:
   - defaults
 dependencies:

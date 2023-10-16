@@ -137,6 +137,8 @@ def read_input(in_file, var_set):
                    [['CHROM', 'POS', 'END', 'REF', 'ALT', 'SVTYPE', 'SVLEN']])
         variants['CHROM'] = ['chr' + str(x) for x in variants['CHROM']]
         variants.loc[~pd.isnull(variants.END), 'END'] = variants.loc[~pd.isnull(variants.END), 'END'].astype('int')
+        
+        print('Note: Input file might have repeated variants if from AnnotSV. Each row of the input will be run regardless.')
 
 
             

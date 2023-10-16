@@ -23,6 +23,8 @@ from collections import Counter
 
 from Bio.Seq import Seq
 
+import pysam
+
 
 print('get_seq packges successfully imported')
 
@@ -30,7 +32,6 @@ print('get_seq packges successfully imported')
 
 
 
-import pysam
 from scipy.stats import spearmanr
 
 import cooltools
