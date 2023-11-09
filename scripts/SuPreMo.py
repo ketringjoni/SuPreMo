@@ -115,6 +115,11 @@ optional arguments:
 '''
 
 
+import tracemalloc
+import time
+tracemalloc.start()
+start_time = time.time()
+
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Parse through arguments
@@ -476,7 +481,7 @@ if get_Akita_scores:
     get_Akita_scores_utils.chrom_lengths = chrom_lengths
     get_Akita_scores_utils.centromere_coords = centromere_coords
 
-    
+   
     
 import sys
 import numpy as np
@@ -485,6 +490,8 @@ nt = ['A', 'T', 'C', 'G']
     
 var_set = 0
 var_set_list = []
+
+print(f'Log file being saved here: {out_file}_log')
 
 while True:
     
@@ -555,7 +562,6 @@ while True:
 
 
     # Create log file to save standard output with error messages
-    print(f'Log file being saved here: {out_file}_log')
     std_output = sys.stdout
     log_file = open(f'{out_file}_log_{var_set}','w')
     sys.stdout = log_file
@@ -665,6 +671,8 @@ while True:
     sys.stdout = std_output
     log_file.close()
     
+
+
     
     # Combine results from all sets
 
@@ -789,6 +797,19 @@ if os.path.exists(f'{out_file}_log'):
         log_file.drop(indexes[:,0], axis = 0, inplace = True)
         log_file.to_csv(f'{out_file}_log', sep = '\t', header = None, index = False)
 
+        
+        
+        
+        
+end_time = time.time()    
+mem_size, mem_peak = tracemalloc.get_traced_memory()
 
+std_output = sys.stdout
+timelog_file = open(f'{out_file}_timelog','w')
+sys.stdout = timelog_file
 
+print(end_time - start_time, '\t', mem_size, '\t', mem_peak)
+
+sys.stdout = std_output
+timelog_file.close()
 

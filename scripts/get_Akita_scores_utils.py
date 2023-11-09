@@ -498,7 +498,8 @@ def get_scores(POS, SVTYPE, SVLEN, sequences, scores, shift, revcomp, get_tracks
     
     if SVTYPE != 'BND' and abs(int(SVLEN)) > bin_size/2:
 
-        matrices = mask_matrices(matrices[0], matrices[1], SVTYPE, abs(int(SVLEN)), var_rel_pos)
+        var_rel_pos2 = var_rel_pos.copy()
+        matrices = mask_matrices(matrices[0], matrices[1], SVTYPE, abs(int(SVLEN)), var_rel_pos2)
 
         # If masking, the relative postion on the map depends on whether it's a duplication or deletion
         # If duplication, the relative position of variant in the ALT sequence should be used
@@ -517,7 +518,7 @@ def get_scores(POS, SVTYPE, SVLEN, sequences, scores, shift, revcomp, get_tracks
     scores_results = {}
     
     if get_maps:
-        map_start_coord = POS - var_rel_pos[0] + 32*target_length_cropped
+        map_start_coord = POS - var_rel_pos[0] + 32*bin_size
         
         triu_tup = np.triu_indices(target_length_cropped, hic_diags)
         scores_results['maps'] = [matrices[0][triu_tup], 

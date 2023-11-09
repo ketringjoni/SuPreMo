@@ -29,22 +29,25 @@ map_length = bin_size * target_length_cropped
 
 
 
-
 # # # # # # # # # # # # # # # # # # 
 # # # Plotting pre-processing # # #
 
 
 
-# Get protein coding gene coordinates (remove ones with versions, ex AC233755.2)
-gene_annot_PC = pd.read_csv('../data/gene_annot_PC', sep = ',')
-gene_annot_PC = gene_annot_PC[['.' not in x for x in gene_annot_PC.gene]]
-gene_annot_PC_BED = BedTool.from_dataframe(gene_annot_PC[['chr', 'start', 'end', 'gene']])
+
+# Get gene coordinates, protein coding for hg38 and all for hg19 (remove ones with versions, ex AC233755.2)
+gene_annot_hg38 = pd.read_csv('../data/gene_annot_hg38', sep = ',')
+gene_annot_hg38 = gene_annot_hg38[['.' not in x for x in gene_annot_hg38.gene]]
+gene_annot_hg38_BED = BedTool.from_dataframe(gene_annot_hg38[['chr', 'start', 'end', 'gene']])
+
+gene_annot_hg19 = pd.read_csv('../data/gene_annot_hg19', sep = ',')
+gene_annot_hg19 = gene_annot_hg19[['.' not in x for x in gene_annot_hg19.gene]]
+gene_annot_hg19_BED = BedTool.from_dataframe(gene_annot_hg19[['chr', 'start', 'end', 'gene']])
 
 
 
 
-
-def get_genes_in_map(CHR, map_start_coord, rel_pos_map, SVTYPE, SVLEN):
+def get_genes_in_map(CHR, map_start_coord, rel_pos_map, SVTYPE, SVLEN, genome = 'hg38'):
     
     
     '''
@@ -56,8 +59,13 @@ def get_genes_in_map(CHR, map_start_coord, rel_pos_map, SVTYPE, SVLEN):
                                                           'start' : [map_start_coord],
                                                           'end' : [map_start_coord + map_length]}))
 
+    if genome == 'hg38':
+        gene_annot_BED = gene_annot_hg38_BED
+    elif genome == 'hg19':
+        gene_annot_BED = gene_annot_hg19_BED
+        
     
-    genes_in_map_BED = map_region_BED.intersect(gene_annot_PC_BED, wa = True, wb = True)
+    genes_in_map_BED = map_region_BED.intersect(gene_annot_BED, wa = True, wb = True)
 
     if genes_in_map_BED == '':
         genes_in_map = ''
