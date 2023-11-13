@@ -4,14 +4,10 @@
 # Written in Python v 3.7.11
 
 '''
-usage: SuPreMo [-h] [--sequences SEQUENCES] [--fa FASTA]
-               [--genome {hg19,hg38}]
-               [--scores {mse,corr,ssi,scc,ins,di,dec,tri,pca} [{mse,corr,ssi,scc,ins,di,dec,tri,pca} ...]]
-               [--shift_by SHIFT_WINDOW [SHIFT_WINDOW ...]] [--file OUT_FILE]
-               [--dir OUT_DIR] [--limit SVLEN_LIMIT] [--seq_len SEQ_LEN]
-               [--revcomp {no_revcomp,add_revcomp,only_revcomp}] [--augment]
-               [--get_seq] [--get_tracks] [--get_maps] [--get_Akita_scores]
-               [--nrows NROWS]
+usage: SuPreMo [-h] [--sequences SEQUENCES] [--fa FASTA] [--genome {hg19,hg38}]
+               [--scores {mse,corr,ssi,scc,ins,di,dec,tri,pca} [{mse,corr,ssi,scc,ins,di,dec,tri,pca} ...]] [--shift_by SHIFT_WINDOW [SHIFT_WINDOW ...]]
+               [--file OUT_FILE] [--dir OUT_DIR] [--limit SVLEN_LIMIT] [--seq_len SEQ_LEN] [--revcomp {no_revcomp,add_revcomp,only_revcomp}] [--augment]
+               [--get_seq] [--get_tracks] [--get_maps] [--get_Akita_scores] [--nrows NROWS]
                Input file
 
 Pipeline for generating mutated sequences for input into predictive models and for scoring variants for disruption to genome folding.
@@ -111,14 +107,9 @@ optional arguments:
   --get_Akita_scores    Get disruption scores. If --get_Akita_scores is not specified, must specify --get_seq. Scores saved in a dataframe with the same number of rows as the input. For multiple alternate alleles, the scores are separated by a comma. To convert the scores from strings to integers, use float(x), after separating rows with multiple alternate alleles. Scores go up to 20 decimal points.
                          (default: False)
   --nrows NROWS         Number of rows (perturbations) to read at a time from input. When dealing with large inputs, selecting a subset of rows to read at a time allows scores to be saved in increments and uses less memory. Files with scores and filtered out variants will be temporarily saved in output direcotry. The file names will have a suffix corresponding to the set of nrows (0-based), for example for an input with 2700 rows and with nrows = 1000, there will be 3 sets. At the end of the run, these files will be concatenated into a comprehensive file and the temporary files will be removed.
-                                             (default: 1000)              
+                                             (default: 1000)            
 '''
 
-
-import tracemalloc
-import time
-tracemalloc.start()
-start_time = time.time()
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -797,19 +788,4 @@ if os.path.exists(f'{out_file}_log'):
         log_file.drop(indexes[:,0], axis = 0, inplace = True)
         log_file.to_csv(f'{out_file}_log', sep = '\t', header = None, index = False)
 
-        
-        
-        
-        
-end_time = time.time()    
-mem_size, mem_peak = tracemalloc.get_traced_memory()
-
-std_output = sys.stdout
-timelog_file = open(f'{out_file}_timelog','w')
-sys.stdout = timelog_file
-
-print(end_time - start_time, '\t', mem_size, '\t', mem_peak)
-
-sys.stdout = std_output
-timelog_file.close()
 
