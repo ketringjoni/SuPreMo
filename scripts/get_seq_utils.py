@@ -382,7 +382,7 @@ def adjust_seq_ends_BND(CHR, position, adjust, shift):
         seq_pos = int(centromere_coords[centromere_coords.chrom == CHR]['end']) + adjust + abs(shift) + 1
 
     elif position == 'chrom_end':
-        seq_pos = int(chrom_lengths[chrom_lengths.CHROM == CHR[3:]]['chrom_max']) - seq_length + adjust - abs(shift) + 1
+        seq_pos = int(chrom_lengths[chrom_lengths.CHROM == CHR[3:]]['chrom_max']) - seq_length + adjust - abs(shift)
         
     elif position == 'chrom_centro_left':
         seq_pos = int(centromere_coords[centromere_coords.chrom == CHR]['start']) - seq_length + adjust - abs(shift) + 1
