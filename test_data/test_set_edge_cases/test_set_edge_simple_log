@@ -1,108 +1,72 @@
 0 (-10000 shift)
-0 (-10000 shift_revcomp)
 0 (0 shift)
 0 (0 shift_revcomp)
 0 (10000 shift)
-0 (10000 shift_revcomp)
 1 (-10000 shift)
-1 (-10000 shift_revcomp)
 1 (0 shift)
 1 (0 shift_revcomp)
 1 (10000 shift)
-1 (10000 shift_revcomp)
 2 (-10000 shift)
-2 (-10000 shift_revcomp)
 2 (0 shift)
 2 (0 shift_revcomp)
 2 (10000 shift)
-2 (10000 shift_revcomp)
 3 (-10000 shift): Warning: Variant not centered; too close to chromosome arm ends.
-3 (-10000 shift_revcomp): Warning: Variant not centered; too close to chromosome arm ends.
 3 (0 shift): Warning: Variant not centered; too close to chromosome arm ends.
 3 (0 shift_revcomp): Warning: Variant not centered; too close to chromosome arm ends.
 3 (10000 shift): Warning: Variant not centered; too close to chromosome arm ends.
-3 (10000 shift_revcomp): Warning: Variant not centered; too close to chromosome arm ends.
 4 (-10000 shift): Warning: Variant not centered; too close to chromosome arm ends.
-4 (-10000 shift_revcomp): Warning: Variant not centered; too close to chromosome arm ends.
 4 (0 shift): Warning: Variant not centered; too close to chromosome arm ends.
 4 (0 shift_revcomp): Warning: Variant not centered; too close to chromosome arm ends.
 4 (10000 shift): Warning: Variant not centered; too close to chromosome arm ends.
-4 (10000 shift_revcomp): Warning: Variant not centered; too close to chromosome arm ends.
 5 (-10000 shift): Warning: Variant not centered; too close to chromosome arm ends.
-5 (-10000 shift_revcomp): Warning: Variant not centered; too close to chromosome arm ends.
 5 (0 shift): Warning: Variant not centered; too close to chromosome arm ends.
 5 (0 shift_revcomp): Warning: Variant not centered; too close to chromosome arm ends.
 5 (10000 shift): Warning: Variant not centered; too close to chromosome arm ends.
-5 (10000 shift_revcomp): Warning: Variant not centered; too close to chromosome arm ends.
 6 (-10000 shift): Warning: Variant not centered; too close to chromosome arm ends.
-6 (-10000 shift_revcomp): Warning: Variant not centered; too close to chromosome arm ends.
 6 (0 shift): Warning: Variant not centered; too close to chromosome arm ends.
 6 (0 shift_revcomp): Warning: Variant not centered; too close to chromosome arm ends.
 6 (10000 shift): Warning: Variant not centered; too close to chromosome arm ends.
-6 (10000 shift_revcomp): Warning: Variant not centered; too close to chromosome arm ends.
 7 (-10000 shift): Warning: Variant not centered; too close to chromosome arm ends.
-7 (-10000 shift_revcomp): Warning: Variant not centered; too close to chromosome arm ends.
 7 (0 shift): Warning: Variant not centered; too close to chromosome arm ends.
 7 (0 shift_revcomp): Warning: Variant not centered; too close to chromosome arm ends.
 7 (10000 shift): Warning: Variant not centered; too close to chromosome arm ends.
-7 (10000 shift_revcomp): Warning: Variant not centered; too close to chromosome arm ends.
 8 (-10000 shift): Warning: Variant not centered; too close to chromosome arm ends.
-8 (-10000 shift_revcomp): Warning: Variant not centered; too close to chromosome arm ends.
 8 (0 shift): Warning: Variant not centered; too close to chromosome arm ends.
 8 (0 shift_revcomp): Warning: Variant not centered; too close to chromosome arm ends.
 8 (10000 shift): Warning: Variant not centered; too close to chromosome arm ends.
-8 (10000 shift_revcomp): Warning: Variant not centered; too close to chromosome arm ends.
 9 (-10000 shift): Warning: Variant not centered; too close to chromosome arm ends.
-9 (-10000 shift_revcomp): Warning: Variant not centered; too close to chromosome arm ends.
 9 (0 shift): Warning: Variant not centered; too close to chromosome arm ends.
 9 (0 shift_revcomp): Warning: Variant not centered; too close to chromosome arm ends.
 9 (10000 shift): Warning: Variant not centered; too close to chromosome arm ends.
-9 (10000 shift_revcomp): Warning: Variant not centered; too close to chromosome arm ends.
 10 (-10000 shift): Warning: Variant not centered; too close to chromosome arm ends.
-10 (-10000 shift_revcomp): Warning: Variant not centered; too close to chromosome arm ends.
 10 (0 shift): Warning: Variant not centered; too close to chromosome arm ends.
 10 (0 shift_revcomp): Warning: Variant not centered; too close to chromosome arm ends.
 10 (10000 shift): Warning: Variant not centered; too close to chromosome arm ends.
-10 (10000 shift_revcomp): Warning: Variant not centered; too close to chromosome arm ends.
 11 (-10000 shift): Warning: Variant not centered; too close to chromosome arm ends.
-11 (-10000 shift_revcomp): Warning: Variant not centered; too close to chromosome arm ends.
 11 (0 shift): Warning: Variant not centered; too close to chromosome arm ends.
 11 (0 shift_revcomp): Warning: Variant not centered; too close to chromosome arm ends.
 11 (10000 shift): Warning: Variant not centered; too close to chromosome arm ends.
-11 (10000 shift_revcomp): Warning: Variant not centered; too close to chromosome arm ends.
 12 (-10000 shift): Warning: Variant not centered; too close to chromosome arm ends.
-12 (-10000 shift_revcomp): Warning: Variant not centered; too close to chromosome arm ends.
 12 (0 shift): Warning: Variant not centered; too close to chromosome arm ends.
 12 (0 shift_revcomp): Warning: Variant not centered; too close to chromosome arm ends.
 12 (10000 shift): Warning: Variant not centered; too close to chromosome arm ends.
-12 (10000 shift_revcomp): Warning: Variant not centered; too close to chromosome arm ends.
 13 (-10000 shift): Warning: Variant not centered; too close to chromosome arm ends.
-13 (-10000 shift_revcomp): Warning: Variant not centered; too close to chromosome arm ends.
 13 (0 shift): Warning: Variant not centered; too close to chromosome arm ends.
 13 (0 shift_revcomp): Warning: Variant not centered; too close to chromosome arm ends.
 13 (10000 shift): Warning: Variant not centered; too close to chromosome arm ends.
-13 (10000 shift_revcomp): Warning: Variant not centered; too close to chromosome arm ends.
 14 (-10000 shift): Warning: Variant not centered; too close to chromosome arm ends.
-14 (-10000 shift_revcomp): Warning: Variant not centered; too close to chromosome arm ends.
 14 (0 shift): Warning: Variant not centered; too close to chromosome arm ends.
 14 (0 shift_revcomp): Warning: Variant not centered; too close to chromosome arm ends.
 14 (10000 shift): Warning: Variant not centered; too close to chromosome arm ends.
-14 (10000 shift_revcomp): Warning: Variant not centered; too close to chromosome arm ends.
 15 (-10000 shift): Error: Centromeric variant.
-15 (-10000 shift_revcomp): Error: Centromeric variant.
 15 (0 shift): Error: Centromeric variant.
 15 (0 shift_revcomp): Error: Centromeric variant.
 15 (10000 shift): Error: Centromeric variant.
-15 (10000 shift_revcomp): Error: Centromeric variant.
 16 (-10000 shift): Error: Centromeric variant.
-16 (-10000 shift_revcomp): Error: Centromeric variant.
 16 (0 shift): Error: Centromeric variant.
 16 (0 shift_revcomp): Error: Centromeric variant.
 16 (10000 shift): Error: Centromeric variant.
-16 (10000 shift_revcomp): Error: Centromeric variant.
 17 (-10000 shift): Error: Centromeric variant.
-17 (-10000 shift_revcomp): Error: Centromeric variant.
 17 (0 shift): Error: Centromeric variant.
 17 (0 shift_revcomp): Error: Centromeric variant.
 17 (10000 shift): Error: Centromeric variant.
-17 (10000 shift_revcomp): Error: Centromeric variant.
