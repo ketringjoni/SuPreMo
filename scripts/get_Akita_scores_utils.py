@@ -230,7 +230,7 @@ def vector_from_seq(seq):
         sequences = layers.EnsembleShift(ensemble_shifts)(sequences)
     sequences
 
-    pred_targets = seqnn_model.predict(np.expand_dims(seq_1hot,0))[0,:,0]    
+    pred_targets = seqnn_model.predict(np.expand_dims(seq_1hot,0), verbose=0)[0,:,0]    
 
     return pred_targets
 
