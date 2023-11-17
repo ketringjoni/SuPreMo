@@ -412,13 +412,16 @@ if get_tracks:
 import os
 from pathlib import Path
 
-chrom_lengths_path = f'data/chrom_lengths_{genome}'
-if not Path(chrom_lengths_path).is_file():
+this_file_path = Path(__file__)
+git_data_dir = this_file_path.parents[1] / "data"
+
+chrom_lengths_path = git_data_dir / f"chrom_lengths_{genome}"
+if not chrom_lengths_path.is_file():
     os.system(f'wget -P ./data/ https://raw.githubusercontent.com/ketringjoni/Akita_variant_scoring/main/data/chrom_lengths_{genome}')
     print(f'Chromosome lengths file downloaded as data/chrom_lengths_{genome}.')
 
-centromere_coords_path = f'data/centromere_coords_{genome}'
-if not Path(centromere_coords_path).is_file():
+centromere_coords_path = git_data_dir} / f"centromere_coords_{genome}"
+if not centromere_coords_path.is_file():
     os.system(f'wget -P ./data/ https://raw.githubusercontent.com/ketringjoni/Akita_variant_scoring/main/data/centromere_coords_{genome}')
     print(f'Centromere coordinates file downloaded as data/centromere_coords_{genome}.')
 
