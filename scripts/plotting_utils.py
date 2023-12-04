@@ -33,14 +33,15 @@ map_length = bin_size * target_length_cropped
 # # # Plotting pre-processing # # #
 
 
+repo_path = Path(__file__).parents[1]
 
 
 # Get gene coordinates, protein coding for hg38 and all for hg19 (remove ones with versions, ex AC233755.2)
-gene_annot_hg38 = pd.read_csv('../data/gene_annot_hg38', sep = ',')
+gene_annot_hg38 = pd.read_csv(f'{repo_path}/data/gene_annot_hg38', sep = ',')
 gene_annot_hg38 = gene_annot_hg38[['.' not in x for x in gene_annot_hg38.gene]]
 gene_annot_hg38_BED = BedTool.from_dataframe(gene_annot_hg38[['chr', 'start', 'end', 'gene']])
 
-gene_annot_hg19 = pd.read_csv('../data/gene_annot_hg19', sep = ',')
+gene_annot_hg19 = pd.read_csv(f'{repo_path}/data/gene_annot_hg19', sep = ',')
 gene_annot_hg19 = gene_annot_hg19[['.' not in x for x in gene_annot_hg19.gene]]
 gene_annot_hg19_BED = BedTool.from_dataframe(gene_annot_hg19[['chr', 'start', 'end', 'gene']])
 

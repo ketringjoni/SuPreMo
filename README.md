@@ -94,7 +94,7 @@ python scripts/SuPreMo.py INPUT <args>
 **Optional arguments**
 - Overall arguments
     * `--help`: Print help page and exit.
-    * `--fa FASTA_FILE`: Path to hg38.fa file.
+    * `--fa FASTA_FILE`: Path to human fasta file. Default is data/{genome}.fa, where genome is hg38 or hg19.
     * `--file FILE_PREFIX`: Prefix for output files.
     * `--dir DIRECTORY`: Path for output files.
     * `--limit LENGTH`: Limit for SV length. Default: 2/3 of sequence length.
@@ -111,6 +111,12 @@ python scripts/SuPreMo.py INPUT <args>
     * `--get_tracks`: Get disruption score tracks.
 
 If multiple inputs are given for an argument, they should be space-separated.
+
+To aquire fasta files, for example for hg38, run the following in the repo directory:
+```shell
+wget -P ./data/ https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.fa.gz
+gunzip data/hg38.fa.gz
+``` 
 
 For more details on how to use arguments, refer to help page printed at the top of [SuPreMo.py](https://github.com/ketringjoni/SuPreMo/blob/main/scripts/SuPreMo.py).
 

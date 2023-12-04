@@ -145,7 +145,7 @@ parser.add_argument('--sequences',
 
 parser.add_argument('--fa',
                     dest = 'fasta', 
-                    help = '''Optional path to reference genome fasta file. If not provided and not existing in data/, it will be downloaded.
+                    help = '''Path to reference genome fasta file. Default: data/{genome}.fa, where genome is hg38 or hg19.
 ''', 
                     type = str,
                     required = False)
@@ -342,10 +342,32 @@ __version__ = '1.0'
 # Adjust inputs from arguments
 
 
+# Handle paths
+
+import os
+from pathlib import Path
+
+# This file path and repo path
+repo_path = Path(__file__).parents[1]
+
+# Output directory and file
+out_dir = os.path.join(repo_path, out_dir)
+if not os.path.exists(out_dir):
+    os.mkdir(out_dir)
+out_file = os.path.join(out_dir, out_file)
+
+
+# Data path
+chrom_lengths_path = f'{repo_path}/data/chrom_lengths_{genome}'
+centromere_coords_path = f'{repo_path}/data/centromere_coords_{genome}'
+   
+
+
+
 # Handle argument dependencies
 
 if fasta_path is None:
-    fasta_path = f'data/{genome}.fa'
+    fasta_path = f'{repo_path}/data/{genome}.fa'
 
 if seq_len != 1048576:
     get_Akita_scores = False
@@ -400,40 +422,7 @@ if get_tracks:
         get_Akita_scores = True
         print('Must get scores to get tracks. --get_Akita_scores was not specified but will be applied.')
 
-
-    
-
-
-
-
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-# Get necessary files if they are not there
-
-import os
-from pathlib import Path
-
-chrom_lengths_path = f'data/chrom_lengths_{genome}'
-if not Path(chrom_lengths_path).is_file():
-    os.system(f'wget -P ./data/ https://raw.githubusercontent.com/ketringjoni/Akita_variant_scoring/main/data/chrom_lengths_{genome}')
-    print(f'Chromosome lengths file downloaded as data/chrom_lengths_{genome}.')
-
-centromere_coords_path = f'data/centromere_coords_{genome}'
-if not Path(centromere_coords_path).is_file():
-    os.system(f'wget -P ./data/ https://raw.githubusercontent.com/ketringjoni/Akita_variant_scoring/main/data/centromere_coords_{genome}')
-    print(f'Centromere coordinates file downloaded as data/centromere_coords_{genome}.')
-
-if fasta_path == f'data/{genome}.fa' and not Path(fasta_path).is_file():
-    os.system(f'wget -P ./data/ https://hgdownload.soe.ucsc.edu/goldenPath/{genome}/bigZips/{genome}.fa.gz')
-    os.system(f'gunzip data/{genome}.fa.gz')
-    print(f'Fasta file downloaded as data/{genome}.fa.')
-
-    
-if not os.path.exists(out_dir):
-    os.mkdir(out_dir)
-out_file = os.path.join(out_dir, out_file)
- 
-    
-    
+  
 
     
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # #

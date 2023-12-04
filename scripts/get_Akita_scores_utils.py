@@ -55,15 +55,12 @@ centromere_coords = None
 
 
 
-model_file  = './Akita_model/model_best.h5'
-params_file = './Akita_model/params.json'
+# This file path and model path
+repo_path = Path(__file__).parents[1]
 
-if not Path(model_file).is_file():
-    os.system('wget -P ./Akita_model/ https://storage.googleapis.com/basenji_hic/1m/models/9-14/model_best.h5')
-    print('Model file downloaded as Akita_model/model_best.h5.')
-if not Path(params_file).is_file():
-    os.system('wget -P ./Akita_model/ https://raw.githubusercontent.com/calico/basenji/master/manuscripts/akita/params.json')
-    print('Model file downloaded as Akita_model/params.json.')
+model_file  = f'{repo_path}/Akita_model/model_best.h5'
+params_file = f'{repo_path}/Akita_model/params.json'
+
 
 with open(params_file) as params_open:
     params = json.load(params_open)
@@ -95,10 +92,6 @@ half_patch_size = round(seq_length/2)
 
 # # # # # # # # # # # # # # # # # # 
 # # Disruption scoring methods # # #
-
-if not Path('scripts/scoring.py').is_file():
-    os.system('wget -P ./scripts/ https://raw.githubusercontent.com/pollardlab/contact_map_scoring/main/code/scoring.py')
-    os.system('wget -P ./scripts/ https://raw.githubusercontent.com/pollardlab/contact_map_scoring/main/code/hicrep.py')
 
 import sys
 sys.path.insert(0, './scripts/')
