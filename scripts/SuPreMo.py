@@ -350,7 +350,9 @@ from pathlib import Path
 # This file path and repo path
 repo_path = Path(__file__).parents[1]
 
-# Output file
+# Output directory and file
+if not os.path.exists(out_dir):
+    os.mkdir(out_dir)
 out_file = os.path.join(out_dir, out_file)
 
 
