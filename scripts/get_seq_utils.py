@@ -888,19 +888,7 @@ def get_sequences_BND(CHR, POS, REF, ALT, shift, revcomp):
         if var_position2 == 'centromere':
             raise ValueError('Centromeric variant.')
 
-        if ALT[0] in nt:
-
-            # t[p[
-            
-            ALT_t = ALT.split('[')[0]
-            
-            ALT_left, ALT_right, REF_for_left, REF_for_right, BND_rel_pos = get_BND_ALT_sense(CHR, POS, var_position, 
-                                                                                             CHR2, POS2, var_position2, 
-                                                                                             shift)
-
-
-
-        elif ALT[0] not in nt:
+        if ALT[0] == '[':
 
             #  [p[t
             
@@ -909,6 +897,16 @@ def get_sequences_BND(CHR, POS, REF, ALT, shift, revcomp):
             ALT_left, ALT_right, REF_for_left, REF_for_right, BND_rel_pos = get_BND_ALT_antisense_left(CHR2, POS2, var_position2, 
                                                                                                       CHR, POS, var_position, 
                                                                                                       shift)
+
+        elif ALT[0] != '[':
+
+            # t[p[
+            
+            ALT_t = ALT.split('[')[0]
+            
+            ALT_left, ALT_right, REF_for_left, REF_for_right, BND_rel_pos = get_BND_ALT_sense(CHR, POS, var_position, 
+                                                                                             CHR2, POS2, var_position2, 
+                                                                                             shift)
 
 
     elif ']' in ALT:
@@ -921,18 +919,7 @@ def get_sequences_BND(CHR, POS, REF, ALT, shift, revcomp):
         if var_position2 == 'centromere':
             raise ValueError('Centromeric variant.')
 
-        if ALT[0] in nt:
-
-            # t]p]
-            
-            ALT_t = ALT.split(']')[0]
-
-            ALT_left, ALT_right, REF_for_left, REF_for_right, BND_rel_pos = get_BND_ALT_antisense_right(CHR, POS, var_position, 
-                                                                                                       CHR2, POS2, var_position2, 
-                                                                                                       shift)
-
-
-        elif ALT[0] not in nt:
+        if ALT[0] == ']':
 
             # ]p]t
 
@@ -941,6 +928,16 @@ def get_sequences_BND(CHR, POS, REF, ALT, shift, revcomp):
             ALT_left, ALT_right, REF_for_left, REF_for_right, BND_rel_pos = get_BND_ALT_sense(CHR2, POS2, var_position2, 
                                                                                              CHR, POS, var_position, 
                                                                                              shift)
+            
+        elif ALT[0] != ']':
+
+            # t]p]
+            
+            ALT_t = ALT.split(']')[0]
+
+            ALT_left, ALT_right, REF_for_left, REF_for_right, BND_rel_pos = get_BND_ALT_antisense_right(CHR, POS, var_position, 
+                                                                                                       CHR2, POS2, var_position2, 
+                                                                                                       shift)
 
 
     
