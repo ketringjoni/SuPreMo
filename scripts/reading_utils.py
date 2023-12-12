@@ -90,12 +90,15 @@ def read_input(in_file, var_set):
             
             if any(['END' in x and 'SVLEN' in x for x in variants.INFO]): # BNDs don't have 'END'
                 
-                variants.loc[variants.INFO.str.startswith('END='), 
-                             'END'] = variants.loc[variants.INFO.str.startswith('END='), 
-                                                   'INFO'].str.split('END=').str[1].str.split(';').str[0]
-                variants.loc[~(variants.INFO.str.startswith('END=')), 
-                             'END'] = variants.loc[~(variants.INFO.str.startswith('END=')), 
-                                                   'INFO'].str.split(';END=').str[1].str.split(';').str[0]
+                if any([x.startswith('END=') for x in variants.INFO]):
+                    variants.loc[variants.INFO.str.startswith('END='), 
+                                 'END'] = variants.loc[variants.INFO.str.startswith('END='), 
+                                                       'INFO'].str.split('END=').str[1].str.split(';').str[0]
+                if any([';END' in x for x in variants.INFO]):
+                    variants.loc[~(variants.INFO.str.startswith('END=')), 
+                                 'END'] = variants.loc[~(variants.INFO.str.startswith('END=')), 
+                                                       'INFO'].str.split(';END=').str[1].str.split(';').str[0]
+
 
                 variants.loc[~pd.isnull(variants.END), 'END'] = variants.loc[~pd.isnull(variants.END), 'END'].astype('int')
                 variants['SVLEN'] = variants.INFO.str.split('SVLEN=').str[1].str.split(';').str[0] # this SVLEN (END-POS) would be 0 for SNPs
