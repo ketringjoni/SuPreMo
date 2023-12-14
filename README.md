@@ -16,41 +16,30 @@
   
   
 ## Installation
-
-**Requirements:**
-- Overall
-    * Python
-    * Pysam
-    * Pandas
-    * Numpy
-    * Pathlib
-    * Biopython
-- Only for SuPreMo-Akita
-    * Akita, Basenji, and their dependencies
-- Only for walkthroughs
-    * Jupyter
-    * Matplotlib
-    
-**For SuPreMo**, we recommend creating a conda environment with the requirements outlined above or using [get_seq_env.yml](https://github.com/ketringjoni/SuPreMo/blob/main/get_seq_env.yml).
-
-**For SuPreMo-Akita**, we recommend creating a conda environment following the steps outlined below. Compatible package versions are shown in [get_Akita_scores_env.yml](https://github.com/ketringjoni/SuPreMo/blob/main/get_Akita_scores_env.yml).
-
-1. Create conda environment with python=3.10 numpy scipy pandas jupyter tensorflow
-2. Install [basenji](https://github.com/calico/basenji) with no dependencies, then set the following environmental variables. 
-    * python setup.py develop --no-deps
-    * export BASENJIDIR=~/basenji
-    * export PATH=$BASENJIDIR/bin:$PATH
-    * export PYTHONPATH=$BASENJIDIR/bin:$PYTHONPATH
-3. Install the rest of the dependencies using pip: astropy, protobuf==3.19, tensorflow-io-gcs-filesystem, patsy, libclang, Cython, cooltools, biopython, pathlib, natsort.
-
-
-To test that all the necessary packages are properly installed, run [testing_packages.py](https://github.com/ketringjoni/SuPreMo/blob/main/scripts/testing_packages.py).
-    
-    
+  
 **Download SuPreMo by:**
 ```shell
 git clone https://github.com/ketringjoni/SuPreMo.git
 ```
+
+For **SuPreMo**, we recommend creating a conda environment with Python, Pysam, Pandas, Numpy, Pathlib, and Biopython or using [get_seq_env.yml](https://github.com/ketringjoni/SuPreMo/blob/main/get_seq_env.yml).
+
+For **SuPreMo-Akita**, we recommend creating a conda environment following the steps outlined below. Compatible package versions are shown in [get_Akita_scores_env.yml](https://github.com/ketringjoni/SuPreMo/blob/main/get_Akita_scores_env.yml).
+
+1. Create conda environment with python=3.10 numpy scipy pandas jupyter tensorflow.
+2. Install [basenji](https://github.com/calico/basenji) with no dependencies and set environmental variables. 
+```shell
+python setup.py develop --no-deps
+export BASENJIDIR=~/basenji
+export PATH=$BASENJIDIR/bin:$PATH
+export PYTHONPATH=$BASENJIDIR/bin:$PYTHONPATH
+```
+3. Install the rest of the dependencies using pip: astropy, protobuf==3.19, tensorflow-io-gcs-filesystem, patsy, libclang, Cython, cooltools, biopython, pathlib, natsort.
+
+
+To test that all the necessary packages are properly installed, run [testing_packages.py](https://github.com/ketringjoni/SuPreMo/blob/main/scripts/testing_packages.py).
+
+For the tutorials, Jupyter and Matplotlib are also needed.
 
 
 
