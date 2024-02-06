@@ -17,29 +17,56 @@
   
 ## Installation
   
-**Download SuPreMo by:**
+**Download repo**
 ```shell
 git clone https://github.com/ketringjoni/SuPreMo.git
 ```
 
-For **SuPreMo**, we recommend creating a conda environment with Python, Pysam, Pandas, Numpy, Pathlib, and Biopython or using [get_seq_env.yml](https://github.com/ketringjoni/SuPreMo/blob/main/get_seq_env.yml).
+**Install SuPreMo or SuPreMo-Akita**
 
-For **SuPreMo-Akita**, we recommend creating a conda environment following the steps outlined below. Compatible package versions are shown in [get_Akita_scores_env.yml](https://github.com/ketringjoni/SuPreMo/blob/main/get_Akita_scores_env.yml).
+**For SuPreMo:**
 
-1. Create conda environment with python=3.10 numpy scipy pandas jupyter tensorflow.
-2. Install [basenji](https://github.com/calico/basenji) with no dependencies and set environmental variables. 
+1. Create and activate a conda environment with Python, Pysam, Pandas, Numpy, Pathlib, and Biopython:
+```shell
+cd SuPreMo/
+conda env create -f supremo_env.yml
+conda activate supremo_env
+```
+
+2. Test that all SuPreMo requirements are properly installed:
+```shell
+python test_install_SuPreMo.py
+```
+
+**For SuPreMo-Akita:**
+
+1. Create conda environment with tensorflow and check for its proper installation:
+```shell
+conda create -n supremo_akita_env python=3.10 numpy scipy pandas jupyter tensorflow
+python import tensorflow
+```
+
+2. Install [basenji](https://github.com/calico/basenji) with no dependencies and set environmental variables: 
 ```shell
 python setup.py develop --no-deps
 export BASENJIDIR=~/basenji
 export PATH=$BASENJIDIR/bin:$PATH
 export PYTHONPATH=$BASENJIDIR/bin:$PYTHONPATH
 ```
-3. Install the rest of the dependencies using pip: astropy, protobuf==3.19, tensorflow-io-gcs-filesystem, patsy, libclang, Cython, cooltools, biopython, pathlib, natsort.
+
+3. Install dependencies:
+```shell
+pip install astropy protobuf==3.19 tensorflow-io-gcs-filesystem patsy libclang cooltools Cython biopython pathlib pysam natsort
+```
+
+4. Test that all SuPreMo-Akita requirements are properly installed:
+```shell
+cd SuPreMo/
+python test_install_SuPreMo-Akita.py
+```
 
 
-To test that all the necessary packages are properly installed, run [testing_packages.py](https://github.com/ketringjoni/SuPreMo/blob/main/scripts/testing_packages.py).
-
-For the tutorials, Jupyter and Matplotlib are also needed.
+For running walkthroughs/tutorials, Jupyter and Matplotlib are also required.
 
 
 
@@ -151,9 +178,9 @@ Superscript descriptions:
 - Creating input files with custom perturbations.
     * [custom_perturbations.ipynb](https://github.com/ketringjoni/SuPreMo/blob/main/walkthroughs/custom_perturbations.ipynb)
 - Walkthrough for running SuPreMo with DeepSEA.
-    * [get_seq_walkthrough.ipynb](https://github.com/ketringjoni/SuPreMo/blob/main/walkthroughs/get_seq_walkthrough.ipynb)
+    * [SuPreMo_walkthrough.ipynb](https://github.com/ketringjoni/SuPreMo/blob/main/walkthroughs/SuPreMo_walkthrough.ipynb)
 - Walkthrough for running SuPreMo-Akita, reading outputs, and interpreting results.
-    * [get_Akita_scores_walkthrough.ipynb](https://github.com/ketringjoni/SuPreMo/blob/main/walkthroughs/get_Akita_scores_walkthrough.ipynb)
+    * [SuPreMo-Akita_walkthrough.ipynb](https://github.com/ketringjoni/SuPreMo/blob/main/walkthroughs/SuPreMo-Akita_walkthrough.ipynb)
 
 
 
@@ -171,9 +198,9 @@ Superscript descriptions:
 
 We have generated two categories of test sets:
 
-1. [Test sets for edge cases](https://github.com/ketringjoni/SuPreMo/blob/main/test/test_set_edge_cases/)
+1. [Test sets for edge cases](https://github.com/ketringjoni/SuPreMo/blob/main/test_data/test_set_edge_cases/)
 
-These are sets of 347 variants that are meant to include all edge cases that SuPreMo should handle and to ensure that SuPreMo is working appropriately with only expected errors and warnings appearing. These were run using the following commands and the outputs are saved in [test/test_set_edge_cases/](https://github.com/ketringjoni/SuPreMo/blob/main/test/test_set_edge_cases/)
+These are sets of 347 variants that are meant to include all edge cases that SuPreMo should handle and to ensure that SuPreMo is working appropriately with only expected errors and warnings appearing. These were run using the following commands and the outputs are saved in [test_data/test_set_edge_cases/](https://github.com/ketringjoni/SuPreMo/blob/main/test_data/test_set_edge_cases/)
 
 ```shell
 python scripts/SuPreMo.py test_data/test_set_edge_cases/test_set_edge_SV.bed \
@@ -190,7 +217,7 @@ python scripts/SuPreMo.py test_data/test_set_edge_cases/test_set_edge_simple.bed
                             --get_Akita_scores
 ```
 
-2. [Test set for sequences](https://github.com/ketringjoni/SuPreMo/blob/main/test/test_set_sequences/)
+2. [Test set for sequences](https://github.com/ketringjoni/SuPreMo/blob/main/test_data/test_set_sequences/)
 
 This is a set of 10 variants for which sequences were generated manually and used as ground truth to ensure that SuPreMo generates reference and mutated sequences accurately. The output sequences for this set from SuPreMo and from the manual curation are not included in this repo due to size, but were tested to be exactly the same.
 

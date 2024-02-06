@@ -1,4 +1,4 @@
-name: get_seq_env
+name: supremo_env
 channels:
   - conda-forge
   - defaults
