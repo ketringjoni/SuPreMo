@@ -59,11 +59,11 @@ def get_variant_position(CHR, POS, var_len, half_left, half_right):
     # Define variant position with respect to chromosome start and end
 
     # Get last coordinate of chromosome
-    chrom_max = int(chrom_lengths[chrom_lengths.CHROM == CHR[3:]]['chrom_max']) 
+    chrom_max = int(chrom_lengths[chrom_lengths.CHROM == CHR[3:]]['chrom_max'].iloc[0]) 
     
     # Get centromere coordinate
-    centro_start = int(centromere_coords[centromere_coords.chrom == CHR]['start'])
-    centro_stop = int(centromere_coords[centromere_coords.chrom == CHR]['end'])
+    centro_start = int(centromere_coords[centromere_coords.chrom == CHR]['start'].iloc[0])
+    centro_stop = int(centromere_coords[centromere_coords.chrom == CHR]['end'].iloc[0])
 
     # If variant too close to the beginning of chromosome
     if POS - half_left <= 0: 
@@ -222,11 +222,11 @@ def get_sequences(CHR, POS, REF, ALT, shift, revcomp: bool):
     
 
     # Get last coordinate of chromosome
-    chrom_max = int(chrom_lengths[chrom_lengths.CHROM == CHR[3:]]['chrom_max'])
+    chrom_max = int(chrom_lengths[chrom_lengths.CHROM == CHR[3:]]['chrom_max'].iloc[0])
     
     # Get centromere coordinates
-    centro_start = int(centromere_coords[centromere_coords.chrom == CHR]['start'])
-    centro_stop = int(centromere_coords[centromere_coords.chrom == CHR]['end'])
+    centro_start = int(centromere_coords[centromere_coords.chrom == CHR]['start'].iloc[0])
+    centro_stop = int(centromere_coords[centromere_coords.chrom == CHR]['end'].iloc[0])
     
     
     # Get start and end of reference sequence
@@ -379,13 +379,13 @@ def adjust_seq_ends_BND(CHR, position, adjust, shift):
         seq_pos = adjust + abs(shift) + 1 
         
     elif position == 'chrom_centro_right':
-        seq_pos = int(centromere_coords[centromere_coords.chrom == CHR]['end']) + adjust + abs(shift) + 1
+        seq_pos = int(centromere_coords[centromere_coords.chrom == CHR]['end'].iloc[0]) + adjust + abs(shift) + 1
 
     elif position == 'chrom_end':
-        seq_pos = int(chrom_lengths[chrom_lengths.CHROM == CHR[3:]]['chrom_max']) - seq_length + adjust - abs(shift)
+        seq_pos = int(chrom_lengths[chrom_lengths.CHROM == CHR[3:]]['chrom_max'].iloc[0]) - seq_length + adjust - abs(shift)
         
     elif position == 'chrom_centro_left':
-        seq_pos = int(centromere_coords[centromere_coords.chrom == CHR]['start']) - seq_length + adjust - abs(shift) + 1
+        seq_pos = int(centromere_coords[centromere_coords.chrom == CHR]['start'].iloc[0]) - seq_length + adjust - abs(shift) + 1
         
     return seq_pos
     

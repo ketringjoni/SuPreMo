@@ -22,6 +22,16 @@
 git clone https://github.com/ketringjoni/SuPreMo.git
 ```
 
+
+**Download genome fasta file (optional\*)**
+```shell
+wget https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/<genome>.fa.gz -P SuPreMo/data/
+gunzip SuPreMo/data/<genome>.fa.gz 
+```
+Currently accepted genomes are hg19 and hg38. 
+\*If you choose to opt out of this, you will need to specify the path to an existing fasta file using the --fa parameter.
+
+
 **Install SuPreMo or SuPreMo-Akita**
 
 **For SuPreMo:**
@@ -30,12 +40,14 @@ git clone https://github.com/ketringjoni/SuPreMo.git
 ```shell
 cd SuPreMo/
 conda env create -f supremo_env.yml
+```
+```shell
 conda activate supremo_env
 ```
 
 2. Test that all SuPreMo requirements are properly installed:
 ```shell
-python test_install_SuPreMo.py
+python scripts/test_install_SuPreMo.py
 ```
 
 **For SuPreMo-Akita:**
@@ -43,12 +55,21 @@ python test_install_SuPreMo.py
 1. Create conda environment with tensorflow and check for its proper installation:
 ```shell
 conda create -n supremo_akita_env python=3.10 numpy scipy pandas jupyter tensorflow
-python import tensorflow
+```
+```shell
+conda activate supremo_akita_env
+python -c "import tensorflow"
 ```
 
 2. Install [basenji](https://github.com/calico/basenji) with no dependencies and set environmental variables: 
 ```shell
+git clone https://github.com/calico/basenji.git
+```
+```shell
+cd basenji/
 python setup.py develop --no-deps
+```
+```shell
 export BASENJIDIR=~/basenji
 export PATH=$BASENJIDIR/bin:$PATH
 export PYTHONPATH=$BASENJIDIR/bin:$PYTHONPATH
@@ -56,13 +77,13 @@ export PYTHONPATH=$BASENJIDIR/bin:$PYTHONPATH
 
 3. Install dependencies:
 ```shell
-pip install astropy protobuf==3.19 tensorflow-io-gcs-filesystem patsy libclang cooltools Cython biopython pathlib pysam natsort
+pip install astropy tensorflow-io-gcs-filesystem patsy libclang cooltools Cython biopython pathlib pysam natsort intervaltree pybedtools pybigwig qnorm seaborn statsmodels tabulate jax wrapt==1.14
 ```
 
 4. Test that all SuPreMo-Akita requirements are properly installed:
 ```shell
-cd SuPreMo/
-python test_install_SuPreMo-Akita.py
+cd ../SuPreMo/
+python scripts/test_install_SuPreMo-Akita.py
 ```
 
 
