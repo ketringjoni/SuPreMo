@@ -17,13 +17,13 @@
   
 ## Installation
   
-###**Download repo**
+### **Download repo**
 ```shell
 git clone https://github.com/ketringjoni/SuPreMo.git
 ```
 
 
-###**Download genome fasta file (optional\*)**
+### **Download genome fasta file (optional\*)**
 ```shell
 wget https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/<genome>.fa.gz -P SuPreMo/data/
 gunzip SuPreMo/data/<genome>.fa.gz 
@@ -33,7 +33,7 @@ Currently accepted genomes are hg19 and hg38.
 \*If you choose to opt out of this, you will need to specify the path to an existing fasta file using the --fa parameter.
 
 
-###**Install SuPreMo or SuPreMo-Akita**
+### **Install SuPreMo or SuPreMo-Akita**
 
 **For SuPreMo:**
 
