@@ -1,16 +1,14 @@
 name: supremo_env
 channels:
-  - bioconda
   - conda-forge
-  - nvidia
-  - r
+  - bioconda
   - defaults
 dependencies:
-  - pandas
-  - pyarrow 
-  - numpy
   - python=3.10
-  - conda-forge::gzip
+  - pip=24.0
   - biopython
-  - pysam
-prefix: /pollard/home/ketringjoni/miniconda3/envs/supremo_env
+  - numpy
+  - pandas
+  - pyarrow
+  - pip:
+      - pysam

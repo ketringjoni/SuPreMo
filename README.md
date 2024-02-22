@@ -23,25 +23,17 @@ git clone https://github.com/ketringjoni/SuPreMo.git
 ```
 
 
-### **Download genome fasta file (optional\*)**
-```shell
-wget https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/<genome>.fa.gz -P SuPreMo/data/
-gunzip SuPreMo/data/<genome>.fa.gz 
-```
-Currently accepted genomes are hg19 and hg38. 
-
-\*If you choose to opt out of this, you will need to specify the path to an existing fasta file using the --fa parameter.
-
-
 ### **Install SuPreMo or SuPreMo-Akita**
 
 **For SuPreMo:**
 
-1. Create and activate a conda environment with Python, Pysam, Pandas, Numpy, Pathlib, and Biopython:
+1. Create and activate a conda environment using the given yml file:
 ```shell
 cd SuPreMo/
 conda env create -f supremo_env.yml
 ```
+*You might be asked to confirm installation with a 'y'.*
+
 ```shell
 conda activate supremo_env
 ```
@@ -50,6 +42,8 @@ conda activate supremo_env
 ```shell
 python scripts/test_install_SuPreMo.py
 ```
+*This should print: SuPreMo packges successfully imported.*
+
 
 **For SuPreMo-Akita:**
 
@@ -57,10 +51,14 @@ python scripts/test_install_SuPreMo.py
 ```shell
 conda create -n supremo_akita_env python=3.10 numpy scipy pandas jupyter tensorflow
 ```
+*You might be asked to confirm installation with a 'y'.*
+
 ```shell
 conda activate supremo_akita_env
 python -c "import tensorflow"
 ```
+*This should not result in any errors (warnings are ok).*
+
 
 2. Install [basenji](https://github.com/calico/basenji) with no dependencies and set environmental variables: 
 ```shell
@@ -80,15 +78,27 @@ export PYTHONPATH=$BASENJIDIR/bin:$PYTHONPATH
 ```shell
 pip install astropy tensorflow-io-gcs-filesystem patsy libclang cooltools Cython biopython pathlib pysam natsort intervaltree pybedtools pybigwig qnorm seaborn statsmodels tabulate jax wrapt==1.14
 ```
+*If pip installation does not work in your system, please troubleshoot the installation of all of the above pacakges.*
 
 4. Test that all SuPreMo-Akita requirements are properly installed:
 ```shell
-cd ../SuPreMo/
+cd path_to_SuPreMo/
 python scripts/test_install_SuPreMo-Akita.py
 ```
+*This should print: SuPreMo packges successfully imported. SuPreMo-Akita packges successfully imported.*
 
 
 For running walkthroughs/tutorials, Jupyter and Matplotlib are also required.
+
+
+### **Download genome fasta file (optional\*)**
+```shell
+wget https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/<genome>.fa.gz -P path_to_SuPreMo/data/
+gunzip path_to_SuPreMo/data/<genome>.fa.gz 
+```
+Currently accepted genomes are hg19 and hg38. 
+
+\*If you choose to opt out of this, you will need to specify the path to an existing fasta file using the --fa parameter.
 
 
 
@@ -150,11 +160,6 @@ python scripts/SuPreMo.py INPUT <args>
 
 If multiple inputs are given for an argument, they should be space-separated.
 
-To aquire fasta files, for example for hg38, run the following in the repo directory:
-```shell
-wget -P ./data/ https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.fa.gz
-gunzip data/hg38.fa.gz
-``` 
 
 For more details on how to use arguments, refer to help page printed at the top of [SuPreMo.py](https://github.com/ketringjoni/SuPreMo/blob/main/scripts/SuPreMo.py).
 
