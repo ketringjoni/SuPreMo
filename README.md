@@ -32,7 +32,7 @@ git clone https://github.com/ketringjoni/SuPreMo.git
 cd SuPreMo/
 conda env create -f supremo_env.yml
 ```
-*You might be asked to confirm installation with a 'y'.*
+*Make sure this runs with no errors.*
 
 ```shell
 conda activate supremo_env
@@ -235,7 +235,8 @@ python scripts/SuPreMo.py test_data/test_set_edge_cases/test_set_edge_SV.bed \
                             --file test_set_edge_SV \
                             --shift_by -10000 0 10000 \
                             --get_Akita_scores
-                            
+```
+```shell                            
 python scripts/SuPreMo.py test_data/test_set_edge_cases/test_set_edge_simple.bed \
                             --dir test_data/test_set_edge_cases \
                             --file test_set_edge_simple \
