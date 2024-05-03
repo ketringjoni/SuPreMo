@@ -27,7 +27,7 @@ git clone https://github.com/ketringjoni/SuPreMo.git
 
 **For SuPreMo:**
 
-1. Create and activate a conda environment using the given yml file:
+1. Create and activate a conda environment using the given yml file (this should typically be done in the conda "base" environment):
 ```shell
 cd SuPreMo/
 conda env create -f supremo_env.yml
@@ -44,10 +44,12 @@ python scripts/test_install_SuPreMo.py
 ```
 *This should print: SuPreMo packges successfully imported.*
 
+You may also need to install the following: gcc, g++ and libz-dev.
+
 
 **For SuPreMo-Akita:**
 
-1. Create conda environment with tensorflow and check for its proper installation:
+1. Create conda environment with tensorflow and check for its proper installation (this should typically be done in the conda "base" environment):
 ```shell
 conda create -n supremo_akita_env python=3.10 numpy scipy pandas jupyter tensorflow
 ```
@@ -60,8 +62,9 @@ python -c "import tensorflow"
 *This should not result in any errors (warnings are ok).*
 
 
-2. Install [basenji](https://github.com/calico/basenji) with no dependencies and set environmental variables: 
+2. Install [basenji](https://github.com/calico/basenji) with no dependencies and set environmental variables:
 ```shell
+cd ~/
 git clone https://github.com/calico/basenji.git
 ```
 ```shell
@@ -73,6 +76,9 @@ export BASENJIDIR=~/basenji
 export PATH=$BASENJIDIR/bin:$PATH
 export PYTHONPATH=$BASENJIDIR/bin:$PYTHONPATH
 ```
+
+If downloading the Basenji repo in a directory other than home (~), adjust the path in the export command accordingly.
+
 
 3. Install dependencies:
 ```shell
