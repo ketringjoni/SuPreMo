@@ -468,7 +468,7 @@ def get_scores(POS, SVTYPE, SVLEN, sequences, scores, shift, revcomp, get_tracks
     
     
     var_rel_pos = sequences[-1]
-    rel_pos_map = get_bin(var_rel_pos[0])
+    rel_pos_map = [get_bin(x) for x in var_rel_pos]
     
     
     # Error if variant position is too close to end of prediction window
@@ -497,12 +497,12 @@ def get_scores(POS, SVTYPE, SVLEN, sequences, scores, shift, revcomp, get_tracks
         # If masking, the relative postion on the map depends on whether it's a duplication or deletion
         # If duplication, the relative position of variant in the ALT sequence should be used
         if SVTYPE == 'DUP':
-            rel_pos_map = get_bin(var_rel_pos[1])
+            rel_pos_map = list(reversed(rel_pos_map))
 
     
     if SVTYPE == "BND":  
 
-        matrices = get_masked_BND_maps(matrices, rel_pos_map)
+        matrices = get_masked_BND_maps(matrices, rel_pos_map[0])
 
 
         
@@ -511,7 +511,7 @@ def get_scores(POS, SVTYPE, SVLEN, sequences, scores, shift, revcomp, get_tracks
     scores_results = {}
     
     if get_maps:
-        map_start_coord = POS - var_rel_pos[0] + 32*bin_size
+        map_start_coord = [POS - x + 32*bin_size for x in var_rel_pos]
         
         triu_tup = np.triu_indices(target_length_cropped, hic_diags)
         scores_results['maps'] = [matrices[0][triu_tup], 

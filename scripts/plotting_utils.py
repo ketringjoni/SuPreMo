@@ -69,7 +69,7 @@ def get_genes_in_map(CHR, map_start_coord, rel_pos_map, SVTYPE, SVLEN, genome = 
     genes_in_map_BED = map_region_BED.intersect(gene_annot_BED, wa = True, wb = True)
 
     if genes_in_map_BED == '':
-        genes_in_map = ''
+        genes_in_map = pd.DataFrame(columns=['Start', 'End', 'Gene', 'width'])
 
     else:
         genes_in_map = (genes_in_map_BED
