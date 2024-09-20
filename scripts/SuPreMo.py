@@ -4,10 +4,10 @@
 # Written in Python v 3.7.11
 
 '''
-usage: SuPreMo [-h] [--sequences SEQUENCES] [--fa FASTA] [--genome {hg19,hg38}]
-               [--scores {mse,corr,ssi,scc,ins,di,dec,tri,pca} [{mse,corr,ssi,scc,ins,di,dec,tri,pca} ...]] [--shift_by SHIFT_WINDOW [SHIFT_WINDOW ...]]
-               [--file OUT_FILE] [--dir OUT_DIR] [--limit SVLEN_LIMIT] [--seq_len SEQ_LEN] [--revcomp {no_revcomp,add_revcomp,only_revcomp}] [--augment]
-               [--get_seq] [--get_tracks] [--get_maps] [--get_Akita_scores] [--nrows NROWS]
+usage: SuPreMo [-h] [--sequences SEQUENCES] [--fa FASTA] [--roi ROI] [--roi_scales ROI_SCALES [ROI_SCALES ...]] [--genome {hg19,hg38}]
+               [--Akita_cell_types {HFF,H1hESC,GM12878,IMR90,HCT116} [{HFF,H1hESC,GM12878,IMR90,HCT116} ...]] [--scores {mse,corr,ssi,scc,ins,di,dec,tri,pca} [{mse,corr,ssi,scc,ins,di,dec,tri,pca} ...]]
+               [--shift_by SHIFT_WINDOW [SHIFT_WINDOW ...]] [--shifts_file SHIFTS_FILE] [--file OUT_FILE] [--dir OUT_DIR] [--limit SVLEN_LIMIT] [--seq_len SEQ_LEN]
+               [--revcomp {no_revcomp,add_revcomp,only_revcomp}] [--augment] [--get_seq] [--get_tracks] [--get_maps] [--get_Akita_scores] [--nrows NROWS]
                Input file
 
 Pipeline for generating mutated sequences for input into predictive models and for scoring variants for disruption to genome folding.
@@ -20,14 +20,22 @@ positional arguments:
                             TXT file.
                          Can be gzipped. Coordinates should be 1-based and left open (,], except for SNPs (follow vcf 4.1/4.2 specifications). See custom_perturbations.ipynb for BED or TXT file input specifications.
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
   --sequences SEQUENCES
                          Input fasta file with sequences. This file is one outputted by SuPreMo.
                          (default: None)
-  --fa FASTA            Optional path to reference genome fasta file. If not provided and not existing in data/, it will be downloaded.
+  --fa FASTA            Path to reference genome fasta file. Default: data/{genome}.fa, where genome is hg38 or hg19.
                          (default: None)
+  --roi ROI             Path to text file with regions of intererst (roi) to use for scoring. Tab-delimited text file with required columns: chrom, start, end or chrom, start1, end1, start2, end2 for paired regions. Alternatively, use 'genes' to weight 2 kb window around protein-coding gene transcription start sites.
+                         (default: None)
+  --roi_scales ROI_SCALES [ROI_SCALES ...]
+                        Scale by which regions of interest (roi) are upweighted compared to the rest of the map. Default is 10 meaning regions of interest have weights of 10 whereas the rest of the bins have weights of 1.
+                         (default: [10])
   --genome {hg19,hg38}  Genome to be used: hg19 or hg38. (default: ['hg38'])
+  --Akita_cell_types {HFF,H1hESC,GM12878,IMR90,HCT116} [{HFF,H1hESC,GM12878,IMR90,HCT116} ...]
+                        Cell types to make Akita predictions for: HFF, H1hESC, GM12878, IMR90, and/or HCT116.
+                         (default: ['HFF'])
   --scores {mse,corr,ssi,scc,ins,di,dec,tri,pca} [{mse,corr,ssi,scc,ins,di,dec,tri,pca} ...]
                         
                         Method(s) used to calculate disruption scores. Use abbreviations as follows:
@@ -44,6 +52,8 @@ optional arguments:
   --shift_by SHIFT_WINDOW [SHIFT_WINDOW ...]
                         Values for shifting prediciton windows inputted as space-separated integers (e.g. -1 0 1). Values outside of range -450000 ≤ x ≤ 450000 will be ignored. Prediction windows at the edge of chromosome arms will only be shifted in the direction that is possible (ex. for window at chrom start, a -1 shift will be treated as a 1 shift since it is not possible to shift left).
                          (default: [0])
+  --shifts_file SHIFTS_FILE
+                        Path to file with values to shift each variant by. Required when not all variants are shifted by the same amount. File should be a text file with the same number of rows as the input file and a column which contains a shift value (negative or positive integer) by which to shift the variants in the corresponding row of the input file. (default: None)
   --file OUT_FILE       Prefix for output files. Saved files will overwrite any existing files.
                          (default: SuPreMo)
   --dir OUT_DIR         Output directory. If directory already exists, files will be saved in existing directory. If the same files already exists in that directory, new files will overwrite them. (default: SuPreMo_output)
@@ -107,7 +117,8 @@ optional arguments:
   --get_Akita_scores    Get disruption scores. If --get_Akita_scores is not specified, must specify --get_seq. Scores saved in a dataframe with the same number of rows as the input. For multiple alternate alleles, the scores are separated by a comma. To convert the scores from strings to integers, use float(x), after separating rows with multiple alternate alleles. Scores go up to 20 decimal points.
                          (default: False)
   --nrows NROWS         Number of rows (perturbations) to read at a time from input. When dealing with large inputs, selecting a subset of rows to read at a time allows scores to be saved in increments and uses less memory. Files with scores and filtered out variants will be temporarily saved in output direcotry. The file names will have a suffix corresponding to the set of nrows (0-based), for example for an input with 2700 rows and with nrows = 1000, there will be 3 sets. At the end of the run, these files will be concatenated into a comprehensive file and the temporary files will be removed.
-                                             (default: 1000)            
+                                             (default: 1000)
+          
 '''
 
 
@@ -150,6 +161,23 @@ parser.add_argument('--fa',
                     type = str,
                     required = False)
 
+parser.add_argument('--roi',
+                    dest = 'roi', 
+                    help = '''Path to text file with regions of intererst (roi) to use for scoring. Tab-delimited text file with required columns: chrom, start, end or chrom, start1, end1, start2, end2 for paired regions. Alternatively, use 'genes' to weight 2 kb window around protein-coding gene transcription start sites.
+''', 
+                    type = str,
+                    required = False)
+
+parser.add_argument('--roi_scales',
+                    dest = 'roi_scales', 
+                    nargs = '+',
+                    help = '''Scale by which regions of interest (roi) are upweighted compared to the rest of the map. Default is 10 meaning regions of interest have weights of 10 whereas the rest of the bins have weights of 1.
+''', 
+                    type = int,
+                    default = [10],
+                    required = False)
+
+
 parser.add_argument('--genome',
                     dest = 'genome',
                     nargs = 1, 
@@ -157,6 +185,16 @@ parser.add_argument('--genome',
                     type = str,
                     choices = ['hg19', 'hg38'],
                     default = ['hg38'],
+                    required = False)
+
+parser.add_argument('--Akita_cell_types',
+                    dest = 'Akita_cell_types', 
+                    nargs = '+', 
+                    help = '''Cell types to make Akita predictions for: HFF, H1hESC, GM12878, IMR90, and/or HCT116.
+''', 
+                    type = str,
+                    choices = ['HFF', 'H1hESC', 'GM12878', 'IMR90', 'HCT116'],
+                    default = ['HFF'],
                     required = False)
 
 parser.add_argument('--scores',
@@ -186,6 +224,12 @@ parser.add_argument('--shift_by',
 ''',
                     type = int,
                     default = [0],
+                    required = False)
+
+parser.add_argument('--shifts_file',
+                    dest = 'shifts_file', 
+                    help = 'Path to file with values to shift each variant by. Required when not all variants are shifted by the same amount. File should be a text file with the same number of rows as the input file and a column which contains a shift value (negative or positive integer) by which to shift the variants in the corresponding row of the input file.', 
+                    type = str,
                     required = False)
 
 parser.add_argument('--file',
@@ -320,9 +364,13 @@ args = parser.parse_args()
 in_file = args.in_file
 input_sequences = args.sequences
 fasta_path = args.fasta
+roi = args.roi
+roi_scales = args.roi_scales
 genome = args.genome[0]
+Akita_cell_types = args.Akita_cell_types
 scores_to_use = args.scores
 shift_by = args.shift_window
+shifts_file = args.shifts_file
 out_file = args.out_file
 out_dir = args.out_dir
 svlen_limit = args.svlen_limit
@@ -365,6 +413,8 @@ centromere_coords_path = f'{repo_path}/data/centromere_coords_{genome}'
 
 # Handle argument dependencies
 
+use_roi = False
+
 if fasta_path is None:
     fasta_path = f'{repo_path}/data/{genome}.fa'
 
@@ -377,8 +427,12 @@ elif svlen_limit > 2/3*seq_len:
     raise ValueError("Maximum SV length limit should not be >2/3 of sequence length.")
 
 if not get_seq and not get_Akita_scores:
-    raise ValueError('Either get_seq and/or get_Akita_scores must be True.')
+    raise ValueError('Either get_seq and/or get_Akita_scores must be specified.')
+
+if roi is not None and not get_Akita_scores:
+    raise ValueError('get_Akita_scores must be specified to use roi.')
     
+
 
 # Adjust shift input: Remove shifts that are outside of allowed range
 max_shift = 0.4*seq_len
@@ -436,14 +490,14 @@ fasta_open = pysam.Fastafile(fasta_path)
 
 # Assign necessary values to variables across module
 
-# Module 1: reading utilities
+# Reading utilities
 import sys
 sys.path.insert(0, 'scripts/')
 import reading_utils
 reading_utils.var_set_size = var_set_size
 
 
-# Module 2: get_seq utilities
+# SuPreMo utilities
 import get_seq_utils
 get_seq_utils.fasta_open = fasta_open
 get_seq_utils.chrom_lengths = chrom_lengths
@@ -454,12 +508,26 @@ get_seq_utils.seq_length = seq_len
 get_seq_utils.half_patch_size = round(seq_len/2)
 
 
-# Module 2: get_Akita_scores utilities
+# SuPreMo-Akita utilities
 if get_Akita_scores:
     import get_Akita_scores_utils
     get_Akita_scores_utils.chrom_lengths = chrom_lengths
     get_Akita_scores_utils.centromere_coords = centromere_coords
+   
+    if roi is None or roi_scales == [0]:
+        use_roi = False
+    else:
+        use_roi = True
+        
+        import get_roi_utils
+        get_roi_utils.pred_len = get_Akita_scores_utils.target_length_cropped * get_Akita_scores_utils.bin_size
+        get_roi_utils.d = get_Akita_scores_utils.bin_size * 5
 
+        get_Akita_scores_utils.roi_coords_BED = get_roi_utils.get_roi(roi, genome)
+        
+        from pybedtools import BedTool
+        get_Akita_scores_utils.BedTool = BedTool
+        get_Akita_scores_utils.roi_scales = roi_scales
    
     
 import sys
@@ -478,7 +546,11 @@ while True:
     variants = reading_utils.read_input(in_file, var_set)
     if len(variants) == 0:
         break
-        
+    if shifts_file is not None:
+        variants = pd.concat([variants, 
+                              pd.read_csv(shifts_file, sep = '\t', low_memory=False, names = ['shift_by'],
+                               skiprows = 1 + var_set*var_set_size, nrows = var_set_size)],
+                             axis = 1)
         
     # Index input based on row number and create output with same indexes
     variants['var_index'] = list(range(var_set*var_set_size, var_set*var_set_size + len(variants)))
@@ -497,6 +569,9 @@ while True:
                'var_index'] += '-'+g.cumcount().astype(str)
         
     variant_scores = pd.DataFrame({'var_index':variants.var_index})
+
+    if use_roi:
+        variant_roi_ids = pd.DataFrame({'var_index':variants.var_index})
     
   
 
@@ -548,6 +623,7 @@ while True:
 
     # Loop through each row (not index) and get disruption scores 
     for i in range(len(variants)):
+        
 
         variant = variants.iloc[i]
 
@@ -567,6 +643,9 @@ while True:
             SVTYPE = np.nan
             SVLEN = 0
 
+        if shifts_file is not None:
+            shift_by = [int(variant.shift_by)]
+
         for shift in shift_by:
 
             # Take reverse complement only with 0 shift
@@ -583,59 +662,68 @@ while True:
                         revcomp_annot = '_revcomp'
                     else:
                         revcomp_annot = ''
-
+    
                     if input_sequences is not None:
-
+    
                         # Generate sequences_i from sequence input
                         if revcomp_annot == '':
                             sequence_names = [x for x in seq_names if x.startswith(f'{var_index}_{shift}') and 
                                               'revcomp' not in x]
                         elif revcomp_annot == '_revcomp':
                             sequence_names = [x for x in seq_names if x.startswith(f'{var_index}_{shift}{revcomp_annot}')]
-
+    
                         sequences_i = []
                         for sequence_name in sequence_names:
                             sequences_i.append(pysam.Fastafile(input_sequences).fetch(sequence_name, 0, seq_len).upper())
-
+    
                         sequences_i.append([int(x) for x in sequence_name.split('[')[1].split(']')[0].split('_')])
                         
-
+    
                     else:
-
+    
                         # Create sequences_i from variant input
                         sequences_i = get_seq_utils.get_sequences_SV(CHR, POS, REF, ALT, END, SVTYPE, shift, revcomp)
                         
-
+    
                     if get_seq:
-
+    
                         # Get relative position of variant in sequence
                         var_rel_pos = str(sequences_i[-1]).replace(', ', '_')
-
+    
                         for ii in range(len(sequences_i[:-1][:3])): 
                             sequences[f'{var_index}_{shift}{revcomp_annot}_{ii}_{var_rel_pos}'] = sequences_i[:-1][ii]
-
+    
                     if get_Akita_scores:
-
-                        scores = get_Akita_scores_utils.get_scores(POS, SVTYPE, SVLEN, 
+                        
+                        scores = get_Akita_scores_utils.get_scores(CHR, POS, SVTYPE, SVLEN, 
                                                                    sequences_i, scores_to_use, 
                                                                    shift, revcomp, 
-                                                                   get_tracks, get_maps)
-
-
+                                                                   get_tracks, get_maps, use_roi, Akita_cell_types)
+    
                         if get_tracks:
                             for track in [x for x in scores.keys() if 'track' in x]:
                                 variant_tracks[f'{var_index}_{track}_{shift}{revcomp_annot}'] = scores[track]
                                 del scores[track]
-
+    
                         if get_maps:
-                            variant_maps[f'{var_index}_{shift}{revcomp_annot}'] = scores['maps']
-                            del scores['maps']
-
+                            for map in [x for x in scores.keys() if 'map' in x]:
+                                variant_maps[f'{var_index}_{map}_{shift}{revcomp_annot}'] = scores[map]
+                                del scores[map]
+                                                
+                        if shifts_file is not None:
+                            shift = 'shifted'
+    
+                        if use_roi:
+                            for roi_ids in [x for x in scores.keys() if 'roi_id' in x]:
+                                variant_roi_ids.loc[variant_scores.var_index == var_index, f'roi_ids_{shift}'] = scores[roi_ids]
+                                del scores[roi_ids]
+    
+    
                         for score in scores:
                             variant_scores.loc[variant_scores.var_index == var_index, 
                                                f'{score}_{shift}{revcomp_annot}'] = scores[score]
-
-
+    
+    
                     print(str(var_index) + ' (' + str(shift) + f' shift{revcomp_annot})')
 
                 except Exception as e: 
@@ -694,8 +782,12 @@ while True:
         
         if var_set == 0:
             variant_scores.to_csv(f'{out_file}_scores_{var_set}', sep = '\t', index = False)
+            if use_roi:
+                variant_roi_ids.to_csv(f'{out_file}_roi_ids_{var_set}', sep = '\t', index = False)
         else:
             variant_scores.to_csv(f'{out_file}_scores_{var_set}', sep = '\t', index = False, header = False)
+            if use_roi:
+                variant_roi_ids.to_csv(f'{out_file}_roi_ids_{var_set}', sep = '\t', index = False, header = False)
     
     
     if get_tracks:
@@ -760,13 +852,18 @@ if get_Akita_scores:
                 for file in {out_file}_scores_*; \
                 do cat "$file" >> {out_file}_scores && rm "$file"; \
                 done')
+    if use_roi:
+        os.system(f'rm -f {out_file}_roi_ids; \
+                    for file in {out_file}_roi_ids_*; \
+                    do cat "$file" >> {out_file}_roi_ids && rm "$file"; \
+                    done')
 
 
 
 # Adjust log file to only have 1 row per variant
 if os.path.exists(f'{out_file}_log'):
 
-    log_file = pd.read_csv(f'{out_file}_log', names = ['output']) 
+    log_file = pd.read_csv(f'{out_file}_log', names = ['output'], sep = '\t') 
     # Move warnings (printed 1 line before variant) to variant line
     indexes = np.array([[index, index+1] for (index, item) in enumerate(log_file.output) if item.startswith('Warning')])
     

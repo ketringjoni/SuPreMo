@@ -1,0 +1,18 @@
+0 (shifted shift)
+1 (shifted shift)
+2 (shifted shift)
+3 (shifted shift): Warning: Variant not centered; too close to chromosome arm ends.
+4 (shifted shift): Warning: Variant not centered; too close to chromosome arm ends.
+5 (shifted shift): Warning: Variant not centered; too close to chromosome arm ends.
+6 (-68015 shift): Error: Variant outside prediction window after cropping.: Warning: Variant not centered; too close to chromosome arm ends.
+7 (shifted shift): Warning: Variant not centered; too close to chromosome arm ends.
+8 (-82281 shift): Error: Variant outside prediction window after cropping.: Warning: Variant not centered; too close to chromosome arm ends.
+9 (shifted shift): Warning: Variant not centered; too close to chromosome arm ends.
+10 (shifted shift): Warning: Variant not centered; too close to chromosome arm ends.
+11 (shifted shift): Warning: Variant not centered; too close to chromosome arm ends.
+12 (shifted shift): Warning: Variant not centered; too close to chromosome arm ends.
+13 (shifted shift): Warning: Variant not centered; too close to chromosome arm ends.
+14 (shifted shift): Warning: Variant not centered; too close to chromosome arm ends.
+15 (-29022 shift): Error: Centromeric variant.
+16 (90424 shift): Error: Centromeric variant.
+17 (-73680 shift): Error: Centromeric variant.
