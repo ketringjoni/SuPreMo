@@ -220,10 +220,14 @@ def get_roi_in_map(CHR, map_start_coord, rel_pos_map, SVTYPE, SVLEN):
     Get bins for regions of interest (roi) that fall in the predicted map.
     
     '''
-
+    
     # For duplications, we want to use regions that correspond to the masked REF matrix
     if SVTYPE == 'DUP':
         map_start_coord = map_start_coord[1]
+        rel_pos_map = rel_pos_map[0]
+    # For BNDs, there is only one value in these lists
+    elif SVTYPE == 'BND':
+        map_start_coord = map_start_coord[0]
         rel_pos_map = rel_pos_map[0]
     else:
         map_start_coord = map_start_coord[0]
