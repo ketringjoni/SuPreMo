@@ -485,7 +485,7 @@ def mask_matrices(REF_pred, ALT_pred, SVTYPE, SVLEN, var_rel_pos):
     '''
 
 
-    if SVTYPE in ['DEL', 'DUP']:
+    if SVTYPE in ['DEL', 'DUP', 'INS']:
         
         # Insertions: Add nans to reference matrix and crop ends, then mirror nans to alternate matrix
         
